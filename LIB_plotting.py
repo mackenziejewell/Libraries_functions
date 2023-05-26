@@ -58,8 +58,9 @@ import matplotlib.cm as cm
 
 def add_colorbar(fig, ax, colorbar_input, cb_placement = 'left', cb_orientation = 'auto', 
                  cb_width = 'auto',  cb_length_fraction = [0,1], cb_pad = 0, 
-                 cb_ticks = 'auto', cb_ticklabels = 'auto', cb_extend='neither', cb_label=' ', 
-                 cb_labelsize = 12, draw_edges=False, edge_params=['k',2], suppress_prints=True):
+                 cb_ticks = 'auto', cb_ticklabels = 'auto', 
+                 cb_extend='neither', cb_label=' ', labelpad = 'auto', cb_label_placement = 'auto', cb_tick_placement = 'auto',
+                 cb_labelsize = 12, draw_edges=True, edge_params=['k',2], suppress_prints=True):
     
     """Function for plotting colorbar along edge of figure axis.
 
@@ -71,9 +72,16 @@ INPUT:
                   or specify [cmap, norm] 
                    where cmap is matplotlib cmap (e.g. 'RdBu')
                    where norm is matplotlib.colors normlalization instance (e.g. made from TwoSlopeNorm)
-- cb_placement: location/orientation of colorbar, as 'left' (default),'right','top','bottom'
+- cb_placement: location of colorbar, as 'left' (default),'right','top','bottom'
 - cb_orientation: orientation ('horizontal' or 'vertical') of colorbar. Set to 'auto' (default) to 
                   pick automatically based off its cb_placement
+- cb_label_placement: location of colorbar label:
+        for cb_orientation = 'horizontal': can either be 'auto' (outwards from plot), 'left', or 'right'
+        for cb_orientation = 'vertical': can either be 'auto' (outwards from plot), 'top', or 'bottom'
+    
+- cb_tick_placement: location of colorbar ticks:
+        for cb_orientation = 'horizontal': can either be 'auto' (outwards from plot), 'left', or 'right'
+        for cb_orientation = 'vertical': can either be 'auto' (outwards from plot), 'top', or 'bottom'
 - cb_width: colorbar width (default: 'auto', which makes it 1/20 figure width)
 - cb_length_fraction: beginning and end position of colorbar along axis as [begin, end], as fraction of axis length 
                       (default: [0,1] for cbar to stretch along full axis)
@@ -88,8 +96,9 @@ INPUT:
            --> 'max': arrow at max end of colorbar
            --> 'both': arrow at both ends of colorbar
 - cb_label: colorbar label (string), default is empty string
+- labelpad: pad between colorbar and label, either 'auto' to use default setting or specify float
 - cb_labelsize: colorbar label and tick fontsize
-- draw_edges: bool, whether or not to draw outline around colorbar (default:False)
+- draw_edges: bool, whether or not to draw outline around colorbar (default:True)
 - edge_params: color and linewidth for cbar edges if drawn, as [edgecolor, edgelinewidth] (default: ['k',2])
 
 
@@ -104,7 +113,7 @@ import cartopy, cartopy.crs as ccrs
 import matplotlib.cm as cm
 
 Latest recorded update:
-10-10-2022
+04-18-2023
     """
     
     
@@ -172,7 +181,7 @@ Latest recorded update:
         cbar = fig.colorbar(CB_INPUT,cax=cbar_ax, 
                             orientation=cb_orientation, extend=cb_extend, drawedges=draw_edges)
 
-    # if colorbar ticks not provided, place as specified
+    # if colorbar ticks provided, place as specified
     else:
         cbar = fig.colorbar(CB_INPUT,cax=cbar_ax, 
                             orientation=cb_orientation, extend=cb_extend, ticks=cb_ticks, drawedges=draw_edges)
@@ -194,15 +203,37 @@ Latest recorded update:
         
     # set label and colorbar fontsize
     cbar.ax.tick_params(labelsize=cb_labelsize)
-    cbar.set_label(cb_label, fontsize=cb_labelsize)
-
-    # place ticks and label on correct side of colorbar for various colorbar orientations
-    if str(cb_placement) == 'top' or str(cb_placement) == 'bottom':
-        cbar_ax.xaxis.set_ticks_position(cb_placement)
-        cbar_ax.xaxis.set_label_position(cb_placement)
+    if str(labelpad) == 'auto':
+        cbar.set_label(cb_label, fontsize=cb_labelsize)
     else:
-        cbar_ax.yaxis.set_ticks_position(cb_placement)
-        cbar_ax.yaxis.set_label_position(cb_placement)
-
+        cbar.set_label(cb_label, fontsize=cb_labelsize, labelpad=labelpad)
+    
+    # choose side of colorbar to place label
+    if str(cb_label_placement) == 'auto':
+        # place label on outer side of plot for various colorbar positions
+        if str(cb_placement) == 'top' or str(cb_placement) == 'bottom':
+            cbar_ax.xaxis.set_label_position(cb_placement)
+        else:
+            cbar_ax.yaxis.set_label_position(cb_placement)
+    # place label on specified side of colorbar
+    else:
+        if str(cb_orientation) == 'horizontal':
+            cbar_ax.xaxis.set_label_position(cb_label_placement) # 'top' or 'bottom'
+        else:
+            cbar_ax.yaxis.set_label_position(cb_label_placement) # 'left' or 'right'
+            
+    # choose side of colorbar to place ticks
+    if str(cb_tick_placement) == 'auto':
+        # place ticks on outer side of plot for various colorbar positions
+        if str(cb_placement) == 'top' or str(cb_placement) == 'bottom':
+            cbar_ax.xaxis.set_ticks_position(cb_placement)
+        else:
+            cbar_ax.yaxis.set_ticks_position(cb_placement)
+    # place ticks on specified side of colorbar
+    else:
+        if str(cb_orientation) == 'horizontal':
+            cbar_ax.xaxis.set_ticks_position(cb_tick_placement) # 'top' or 'bottom'
+        else:
+            cbar_ax.yaxis.set_ticks_position(cb_tick_placement) # 'left' or 'right'
 
     return fig, ax
