@@ -6,7 +6,7 @@ import xarray as xr
 def grab_ReiserLeadFreq(file = '/Volumes/Jewell_EasyStore/Reiser_LeadFrequency_20022019/Arctic_Relleads_2002_2019.nc',
                         return_vars = ['lon', 'lat', 'freq', 'ds']):
     
-    """Function to grab lead frequencies from Reiser et al. (2020) data. 
+    """Function to grab lead frequencies from locally stored Reiser et al. (2020) data. 
     
     Corresponds to data publication on PANGEA:
     Reiser, Fabian; Willmes, Sascha; Heinemann, Günther (2020): Daily sea ice lead data for Arctic and Antarctic. PANGAEA, https://doi.org/10.1594/PANGAEA.917588
@@ -36,7 +36,7 @@ import numpy as np
 import xarray as xr
 
 Latest recorded update:
-03-07-2023
+06-20-2023
  """
     
     assert type(file) == str, f"file should be string, not {type(file)}"
