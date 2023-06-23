@@ -271,35 +271,49 @@ import datetime as dt
 from datetime import datetime
 import cdsapi
 import xarray as xr
+import numpy as np
+import os
 from urllib.request import urlopen
 #---------------------------------------------------------------------
 
-def Download_ERA5(dt_obj, 
+def Download_ERA5(dt_obj = None,
+                  years = [2000],
+                  months = np.arange(1,12+1),
+                  days = np.arange(1,31+1),
+                  hours = np.arange(1,23+1),
                   ERAprod = 'reanalysis-era5-single-levels',
                   ERAvars = ['10m_u_component_of_wind', '10m_v_component_of_wind','mean_sea_level_pressure'],
                   download_data = True, read_into_memory= False,
-                  alt_dir = '',  SaveName = 'temp_ERAdownload.nc', full_day_hourly = False,
-                  extent = [90, -180, 60,180], quiet = False):
+                  alt_dir = '',  SaveName = 'temp_ERAdownload.nc', 
+                  extent = [90, -180, 60,180], quiet = False, allow_overwrites=False):
     
-    """Function to download ERA5 data using cdsapi.Client(). Given datetime object, automatically download ERA5 variables. This works for downloading hourly data from ERA5 on single levels and may work for other data sets. For given date time, downloads from most recent hour before datetime (or can download entire day, hourly).
+    """Function to download ERA5 data using cdsapi.Client(). Given datetime object or multiple dates information, automatically download ERA5 variables to file and/or memory. This works for downloading hourly data from ERA5 on single levels and may work for other data sets. When given single date time object, downloads from most recent hour before datetime.
        
        Referencing: https://towardsdatascience.com/read-era5-directly-into-memory-with-python-511a2740bba0
 
 INPUT: 
-- dt_obj: datetime object of desired date to be found in ECMWF
+
+IF DOWNLOADING SINGLE DATE (default, if dt_obj != None):
+- dt_obj: datetime object of desired date to be found in ECMWF (default: None)
+else, set dt_obj = None
+IF DOWNLOADING RANGE OF DATES (if dt_obj = None):
+- years: list/array of years to download
+- months: list/array of month numbers to download (default: np.arange(1,12+1), all months)
+- days: list/array of day numbers to download (will automatically skip days not existing in month, for example day 30 of feb)
+    (default: np.arange(1,31+1), all days)
+- hours: list/array of hours to download (default: np.arange(1,23+1), all hours)
 - ERAprod: ERA5 product to download (default: 'reanalysis-era5-single-levels')
 - ERAvars: list of ERA5 variables to download 
             (default: ['10m_u_component_of_wind', '10m_v_component_of_wind','mean_sea_level_pressure'])
-- download_data: whether or not to download data (default: True)
-- read_into_memory: whether or not to read data into memory (default: False)
+- download_data: bool, whether or not to download data (default: True)
+- read_into_memory: bool, whether or not to read data into memory (default: False)
 - alt_dir: directory to store downloaded .nc file (default: directory where code is run)
 - SaveName: desired filename (default: 'temp_ERAdownload.nc')
-- full_day_hourly: whether to download full day of data at hourly sampling (default: False)
-                   - If True, download 0Z thru 23Z on day. 
-                   - If False, download rounded-down hour of dt_obj
+- allow_overwrites: bool, whether or not to allow overwrites if file SaveName already exists
+    (default: False)
 - extent: data extent to download [N, W S, E] (default: [85, 170, 65, -110])
 - quiet: option to quiet API client download information/automatic input
-              (default: False)
+        (default: False)
 
 OUTPUT:
 if download_data == True and read_into_memory == False:
@@ -315,46 +329,71 @@ import datetime as dt
 from datetime import datetime
 import cdsapi
 import xarray as xr
+import numpy as np
+import os
 from urllib.request import urlopen
 
 Latest recorded update:
-06-16-2022
+06-23-2023
     """
-    
-    # grab date data from datetime object
-    #------------------------------------
-    Year_string = dt_obj.strftime('%Y')
-    Month_string = dt_obj.strftime('%m')
-    Day_string = dt_obj.strftime('%d')
-    
-    NearestDate = datetime.strptime(Year_string+Month_string+Day_string+dt_obj.strftime('%H'), '%Y%m%d%H')
-    
-    
-    if full_day_hourly == False:
-        Time_string = dt_obj.strftime('%H')+':00'
-        if quiet == False:
-            print(f' > download: {NearestDate}')
-    else:
-        Time_string = ['00:00', '01:00', '02:00',
-                    '03:00', '04:00', '05:00',
-                    '06:00', '07:00', '08:00',
-                    '09:00', '10:00', '11:00',
-                    '12:00', '13:00', '14:00',
-                    '15:00', '16:00', '17:00',
-                    '18:00', '19:00', '20:00',
-                    '21:00', '22:00', '23:00']
-        if quiet == False:
-            print(f' > download: {Time_string} on {NearestDate.date()}')
 
+    # check whether file already exists if downloading
+    allow_download = True
+    if download_data == True:
+        FullFileName = alt_dir+SaveName
+        if os.path.isfile(FullFileName):
+            if allow_overwrites:
+                if quiet == False:
+                    print(f' >>> {SaveName} already exists in {alt_dir}. Will overwrite file.')
+            else:
+                print(f' >>> {SaveName} already exists in {alt_dir}. Will not overwrite file.')
+                allow_download = False
+    
+    # check for dt_obj. If not None, use this download date. 
+    if dt_obj != None:
         
-#     NearestDate = Year_string+'-'+Month_string+'-'+Day_string+' '+Hour_string+':00'
-    
+        # grab date data from datetime object
+        #------------------------------------
+        Year_string = dt_obj.strftime('%Y')
+        Month_string = dt_obj.strftime('%m')
+        Day_string = dt_obj.strftime('%d')
+        Time_string = dt_obj.strftime('%H')+':00'
+        NearestDate = datetime.strptime(Year_string+Month_string+Day_string+dt_obj.strftime('%H'), '%Y%m%d%H')
+        
+        if quiet == False:
+            print(f' >>> download: {NearestDate}')
 
-    
+    # otherwise download across multiple dates as below
+    else:  
+        Year_string = [str(year) for year in years]
+        Month_string = [str(month).zfill(2) for month in months]
+        Day_string = [str(day).zfill(2) for day in days]
+        Time_string = [f'{str(hours).zfill(2)}:00' for hours in hours]
+        
+        if quiet == False:
+            print(f' >>> download across dates:')
+            print(f'     - years: {Year_string}')
+            print(f'     - months: {Month_string}')
+            print(f'     - days: {Day_string}')
+            print(f'     - hours: {Time_string}')
+
+
     # make download with cdsapi.Client()
+    # if exception occurs regarding Missing/incomplete configuration file,
+    # print instructions to set one of these up
     #-----------------------------------
-    c = cdsapi.Client(quiet = quiet)
-    
+    error = None
+    try:
+        c = cdsapi.Client(quiet = quiet)
+    except Exception as e: 
+        error = e
+        print(e)
+    if error != None:
+        if 'Missing/incomplete configuration file' in str(error):
+            print(f'   make sure CDS API configuration file has been set up on computer.')
+            print(f'   Reference {"https://cds.climate.copernicus.eu/api-how-to"} for set-up information.')
+            print(f'   {"https://bookdown.org/huckley/microclimate_users_guide/era5.html"} also has more detailed instructions.')
+            
     # api parameters 
     params = {'product_type': 'reanalysis',
               'variable': ERAvars,
@@ -363,29 +402,24 @@ Latest recorded update:
               'day': Day_string,
               'time': Time_string,
               'area': extent,
-              'format': 'netcdf',}
+              'format': 'netcdf'}
     
     # retrieve the path to the file
     #------------------------------
     data = c.retrieve(ERAprod, params)
 
-    # download the file, is specified
+    # download the file, if specified
     #--------------------------------
-    if download_data:
-        # save as temp_ERAdownload.nc. Default save to directory  
-        # where code is run, but can provide alternative directory
-        #---------------------------------------------------------
-        FullFileName = alt_dir+SaveName
+    if download_data and allow_download:
         data.download(FullFileName)
         if quiet == False:
-            print(f' > download data to: {FullFileName}')
+            print(f' >>> save data to: {FullFileName}')
     
-    # read data into memory, is specified
+    # read data into memory, if specified
     #------------------------------------
     if read_into_memory:
         with urlopen(data.location) as f:
             ds = xr.open_dataset(f.read())
-    
     
     # return downloaded data path, or dataset in memory, or both.
     #------------------------------------------------------------
@@ -397,4 +431,3 @@ Latest recorded update:
         return FullFileName, ds
     else: 
         print('At least one of download_data and read_into_memory must be True.')
-    
