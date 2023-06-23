@@ -59,9 +59,11 @@ Latest recorded update:
 
 
 def grab_TB_NSIDC0001(date = datetime(year = 2015, month = 3, day = 24), 
-                 Tb_datapath= '/Volumes/Jewell_EasyStore/Tb/', 
-                 Tb_name = 'NSIDC0001_TB_PS_N25km_{}_v6.0.nc',
-                 return_vars = ['xx', 'yy', 'TB_19H', 'TB_19V', 'TB_37H', 'TB_37V', 'proj', 'ds'], suppress_prints = True):
+                      Tb_datapath= '/Volumes/Jewell_EasyStore/NSIDC-0001_TB/', 
+                      Tb_name = 'NSIDC0001_TB_PS_N25km_{}_v6.0.nc',
+                      return_vars = ['xx', 'yy', 'TB_19H', 'TB_19V', 'TB_37H', 'TB_37V', 'proj', 'ds'], 
+                      throw_error_miss = True,
+                      suppress_prints = True):
    
     
     """Grab daily brightness temperatures (Tb) from NSIDC data (NSIDC-0001, doi: 10.5067/MXJL42WSXTS1)
@@ -76,6 +78,9 @@ INPUT:
 - return_vars: variables/attributes to return in specified order. (list)
     Can include any or all OUTPUT variables in any order: 
     default: ['xx', 'yy', 'TB_19H', 'TB_19V', 'TB_37H', 'TB_37V', 'PR_19', 'PR_37', 'GR_37_19_V', 'GR_37_19_H', 'proj', 'ds']
+- throw_error_miss: bool, whether or not to throw an error if data not in dataset, e.g. 2/20/2021 (default: True)
+    If False, return empty string for all vars besides 'xx', 'yy', 'proj', and 'ds' in dictionary when data missing
+    If True, raise exception. 
 - suppress_prints: bool, whether or not to supress print statements (default: True)
 
 OUTPUT: 
@@ -106,7 +111,7 @@ import netCDF4 as nc
 grab_projinfo_TB
 
 Latest recorded update:
-04-25-2023
+06-22-2023
     """
     
     # assert input variable types
@@ -142,12 +147,17 @@ Latest recorded update:
     # open data with netCDF4 to import actual data
     ds = nc.Dataset(data_path)
 
-    
     # store all output in dictionary
     vars_dict = {}
     
     # use grab_proj_info function to grab projection attributes and geo grid
     vars_dict['proj'] = grab_projinfo_TB(ds)
+    
+    # projected geographic coordinates
+    vars_dict['xx'], vars_dict['yy'] = np.meshgrid(ds.variables['x'][:], ds.variables['y'][:])
+
+    # netcdf4 dataset
+    vars_dict['ds'] = ds
     
     
     # for var in ds.variables.values():
@@ -155,24 +165,39 @@ Latest recorded update:
     # for var in ds.groups.values():
     #     print(var)
 #     for var in ds.groups['F17'].variables:
-#             print(var)
-        
-    vars_dict['TB_19H'] = ds.groups['F17']['TB_F17_19H'][0,:,:]
-    vars_dict['TB_19V'] = ds.groups['F17']['TB_F17_19V'][0,:,:]
-    vars_dict['TB_37H'] = ds.groups['F17']['TB_F17_37H'][0,:,:]
-    vars_dict['TB_37V'] = ds.groups['F17']['TB_F17_37V'][0,:,:]   
+#             print(var)    
     
-    # polarization and gradient ratios as in Cavalieri et al. (1984)
-    vars_dict['PR_19'] = (vars_dict['TB_19V'] - vars_dict['TB_19H']) / (vars_dict['TB_19V'] + vars_dict['TB_19H'])
-    vars_dict['PR_37'] = (vars_dict['TB_37V'] - vars_dict['TB_37H']) / (vars_dict['TB_37V'] + vars_dict['TB_37H'])
-    vars_dict['GR_37_19_V'] = (vars_dict['TB_37V'] - vars_dict['TB_19V']) / (vars_dict['TB_37V'] + vars_dict['TB_19V'])
-    vars_dict['GR_37_19_H'] = (vars_dict['TB_37H'] - vars_dict['TB_19H']) / (vars_dict['TB_37H'] + vars_dict['TB_19H'])
+    # if sensor data exists, default to first sensor data (for example F17, if both F17, and F18 data are stored)
+    # could later add option for user to set preference for sensor platform if available on given date
+    if len(ds.groups) > 0:
+ 
+        # first sensor name
+        # e.g. if sat == 'F17', this would grab ds.groups[F17']['TB_F17_19H']
+        sat = list(ds.groups)[0]
 
-    # projected geographic coordinates
-    vars_dict['xx'], vars_dict['yy'] = np.meshgrid(ds.variables['x'][:], ds.variables['y'][:])
+        if suppress_prints == False:
+            print(f'satellites: {list(ds.groups)}')
+            print(f'select {sat}')
 
-    # netcdf4 dataset
-    vars_dict['ds'] = ds
+        vars_dict['TB_19H'] = ds.groups[sat][f'TB_{sat}_19H'][0,:,:]
+        vars_dict['TB_19V'] = ds.groups[sat][f'TB_{sat}_19V'][0,:,:]
+        vars_dict['TB_37H'] = ds.groups[sat][f'TB_{sat}_37H'][0,:,:]
+        vars_dict['TB_37V'] = ds.groups[sat][f'TB_{sat}_37V'][0,:,:]   
+
+        # polarization and gradient ratios as in Cavalieri et al. (1984)
+        vars_dict['PR_19'] = (vars_dict['TB_19V'] - vars_dict['TB_19H']) / (vars_dict['TB_19V'] + vars_dict['TB_19H'])
+        vars_dict['PR_37'] = (vars_dict['TB_37V'] - vars_dict['TB_37H']) / (vars_dict['TB_37V'] + vars_dict['TB_37H'])
+        vars_dict['GR_37_19_V'] = (vars_dict['TB_37V'] - vars_dict['TB_19V']) / (vars_dict['TB_37V'] + vars_dict['TB_19V'])
+        vars_dict['GR_37_19_H'] = (vars_dict['TB_37H'] - vars_dict['TB_19H']) / (vars_dict['TB_37H'] + vars_dict['TB_19H'])
+    
+    # if sensor data does not exist, either throw error or assign as empty
+    else:
+        if throw_error_miss:
+            raise Exception(f"no sensor data variable found in ds groups for {date.strftime('%b %d, %Y')}")
+        else:
+            for VAR in ['TB_19H', 'TB_19V', 'TB_37H', 'TB_37V', 'PR_19', 'PR_37', 'GR_37_19_V', 'GR_37_19_H']:
+                vars_dict[VAR] = ''
+
     
     # save specified variables to list for output
     return_data = [vars_dict[var] for var in return_vars]
