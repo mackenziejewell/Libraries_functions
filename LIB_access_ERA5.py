@@ -295,7 +295,7 @@ INPUT:
 
 IF DOWNLOADING SINGLE DATE (default, if dt_obj != None):
 - dt_obj: datetime object of desired date to be found in ECMWF (default: None)
-else, set dt_obj = None
+    (will download data from nearest hour before given time)
 IF DOWNLOADING RANGE OF DATES (if dt_obj = None):
 - years: list/array of years to download
 - months: list/array of month numbers to download (default: np.arange(1,12+1), all months)
