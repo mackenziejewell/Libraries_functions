@@ -60,7 +60,7 @@ def add_colorbar(fig, ax, colorbar_input, cb_placement = 'left', cb_orientation 
                  cb_width = 'auto',  cb_length_fraction = [0,1], cb_pad = 0, 
                  cb_ticks = 'auto', cb_ticklabels = 'auto', 
                  cb_extend='neither', cb_label=' ', labelpad = 'auto', cb_label_placement = 'auto', cb_tick_placement = 'auto',
-                 cb_labelsize = 12, draw_edges=True, edge_params=['k',2], suppress_prints=True):
+                 cb_labelsize = 12, draw_edges=False, edge_params=['k',2], suppress_prints=True):
     
     """Function for plotting colorbar along edge of figure axis.
 
@@ -98,7 +98,7 @@ INPUT:
 - cb_label: colorbar label (string), default is empty string
 - labelpad: pad between colorbar and label, either 'auto' to use default setting or specify float
 - cb_labelsize: colorbar label and tick fontsize
-- draw_edges: bool, whether or not to draw outline around colorbar (default:True)
+- draw_edges: bool, whether or not to draw outline around colorbar (default: False)
 - edge_params: color and linewidth for cbar edges if drawn, as [edgecolor, edgelinewidth] (default: ['k',2])
 
 
@@ -113,7 +113,7 @@ import cartopy, cartopy.crs as ccrs
 import matplotlib.cm as cm
 
 Latest recorded update:
-04-18-2023
+06-23-2023
     """
     
     
