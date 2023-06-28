@@ -60,7 +60,7 @@ Latest recorded update:
 
 
 def grab_sicNASAteam(date = datetime(year = 2015, month = 3, day = 24), 
-                     sic_datapath= '/Volumes/Jewell_EasyStore/sic-daily/', 
+                     sic_datapath= '/Volumes/Jewell_EasyStore/NSIDC-0051_NTsic/', 
                      SIC_name = 'NSIDC0051_SEAICE_PS_N25km_{}_v2.0.nc',
                      return_vars = ['xx', 'yy', 'sic', 'proj', 'ds'], 
                      throw_error_miss = True, suppress_prints = True):
@@ -71,7 +71,7 @@ INPUT:
 - date: date of SIC data to open (datetime object)
     default: datetime(year = 2015, month = 3, day = 24)
 - sic_datapath: path to directory where SIC data are stored (string)
-    default: sic_datapath = '/Volumes/Jewell_EasyStore/sic-daily/'
+    default: sic_datapath = '/Volumes/Jewell_EasyStore/NSIDC-0051_NTsic/'
 - SIC_name = naming convention of sic data files with {} indicating location of date (YYYYmmdd) in string (string)
     default: 'NSIDC0051_SEAICE_PS_N25km_{}_v2.0.nc'
 - return_vars: variables/attributes to return in specified order. (list)
@@ -102,7 +102,7 @@ import cartopy.crs as ccrs
 grab_projinfo_sicNASAteam
 
 Latest recorded update:
-05-18-2022
+06-27-2022
     """
     
     # assert input variable types

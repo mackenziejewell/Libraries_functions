@@ -2,6 +2,10 @@
 
 Collections of up-to-date functions useful across a variety of projects.
 
+
+### LIB_iceage_NSIDC0611.py
+Functions to open locally-stored NSIDC sea ice age data
+
 ### LIB_access_ERA5.py
 Functions to download (CDS API) and open ERA5 atmospheric reanalysis data. 
 

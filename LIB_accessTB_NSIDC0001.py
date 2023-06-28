@@ -83,7 +83,8 @@ INPUT:
     If True, raise exception. 
 - suppress_prints: bool, whether or not to supress print statements (default: True)
 
-OUTPUT: 
+OUTPUT:
+List of any or all of variables specified in return_vars:
 - xx: x-coordinates of projected SIC data (M x N array)
 - yy: y-coordinates of projected SIC data (M x N array)
 - TB_19H: Horizontal polarization of 19 Hz Tb data (M x N array)
@@ -111,7 +112,7 @@ import netCDF4 as nc
 grab_projinfo_TB
 
 Latest recorded update:
-06-22-2023
+06-27-2023
     """
     
     # assert input variable types
