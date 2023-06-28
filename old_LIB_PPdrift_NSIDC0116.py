@@ -1,3 +1,5 @@
+# OLD versions of routines used to open PP sea ice drift data
+
 #////////////////////
 #  get_PPD_date  ///
 #//////////////////
@@ -376,4 +378,4 @@ Latest recorded update:
     u, v = convert_PPD_vectors(lons, u, v, fill_to_nan = True)
     
     return lons, lats, u, v
-                                          
+                                    

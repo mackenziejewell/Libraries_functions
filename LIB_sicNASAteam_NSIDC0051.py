@@ -8,13 +8,13 @@ import cartopy
 import cartopy.crs as ccrs
 
 
-def grab_projinfo_sicNASAteam(ds, suppress_prints = True):
+def grab_projinfo_sicNASAteam(ds, quiet = True):
     
     """Grab projection info from NASA team (NSIDC-0051) sea ice concentration data (doi: 10.5067/MPYG15WAA4WX)
 
 INPUT: 
 - ds: sea ice concentration data opened with xarray
-- suppress_prints: bool, whether or not to supress print statements (default: True)
+- quiet: bool, whether or not to supress print statements (default: True)
 
 OUTPUT:
 - ice_projection: cartopy projection from sea ice concentration data projection info
@@ -27,7 +27,7 @@ import cartopy
 import cartopy.crs as ccrs
 
 Latest recorded update:
-02-27-2022
+06-28-2022
     """
     
     spatial = ds.crs
@@ -39,7 +39,7 @@ Latest recorded update:
     central_meridian = int(spatial.straight_vertical_longitude_from_pole)
     latitude_of_origin = int(spatial.standard_parallel)
 
-    if suppress_prints != True:
+    if not quiet:
         print(f'>>> data provided in {spatial.grid_mapping_name} projection from the {spatial.long_name}')
         print(f'  - semi_major_axis: {semimajor}')
         print(f'  - semi_minor_axis: {semiminor}')
@@ -59,11 +59,11 @@ Latest recorded update:
 
 
 
-def grab_sicNASAteam(date = datetime(year = 2015, month = 3, day = 24), 
+def grab_sicNASAteam(date = datetime(year = 2000, month = 1, day = 1), 
                      sic_datapath= '/Volumes/Jewell_EasyStore/NSIDC-0051_NTsic/', 
                      SIC_name = 'NSIDC0051_SEAICE_PS_N25km_{}_v2.0.nc',
                      return_vars = ['xx', 'yy', 'sic', 'proj', 'ds'], 
-                     throw_error_miss = True, suppress_prints = True):
+                     throw_error_miss = True, quiet = True):
     
     """Grab daily sea ice concentrations from NASA team (NSIDC-0051) sea ice concentration data (doi: 10.5067/MPYG15WAA4WX)
 
@@ -80,7 +80,7 @@ INPUT:
 - throw_error_miss: bool, whether or not to throw an error if SIC data not in dataset, e.g. late 1987 (default: True)
     If False, return empty string for 'sic' in dictionary when data missing
     If True, raise exception. 
-- suppress_prints: bool, whether or not to supress print statements (default: True)
+- quiet: bool, whether or not to supress print statements (default: True)
 
 OUTPUT: 
 - xx: x-coordinates of projected SIC data (M x N array)
@@ -102,7 +102,7 @@ import cartopy.crs as ccrs
 grab_projinfo_sicNASAteam
 
 Latest recorded update:
-06-27-2022
+06-28-2022
     """
     
     # assert input variable types
@@ -110,13 +110,13 @@ Latest recorded update:
     assert type(return_vars) == list, f'return_vars must be list, not {type(return_vars)}'
     assert type(SIC_name) == str, f'SIC_name must be string, not {type(SIC_name)}'
     assert type(sic_datapath) == str, f'sic_datapath must be string, not {type(sic_datapath)}'
-    assert type(suppress_prints) == bool, f'suppress_prints must be bool, not {type(suppress_prints)}'
+    assert type(quiet) == bool, f'quiet must be bool, not {type(quiet)}'
     
     # open SIC data
     filename = SIC_name.format(date.strftime('%Y%m%d'))
     data_path = sic_datapath+filename
     
-    if suppress_prints == False:
+    if not quiet:
         print(f' >>> opening {data_path}')
     
     assert len(return_vars) > 0, 'return_vars list is empty. Must have length >=1'
@@ -130,7 +130,7 @@ Latest recorded update:
     
     # remove time dimension since data are stored in single-time slices
     ds_time = ds.time[0]
-    if suppress_prints == False:
+    if not quiet:
         print(f' time: {ds_time.values}')
     ds = ds.sel(time = ds_time)
 
