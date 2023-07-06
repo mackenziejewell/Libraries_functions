@@ -501,3 +501,199 @@ Latest recorded update:
         
     return poly_variable_mean
         
+    
+    
+#//////////////////////////////
+#  distance_weighted_mean  ///
+#////////////////////////////
+#---------------------------------------------------------------------
+# FFind inverse distance - weighted mean value of data at provided lat/lon coordinate from gridded data.
+#---------------------------------------------------------------------
+# DEPENDENCIES:
+from pyproj import Geod
+import numpy as np
+from metpy.units import units
+#---------------------------------------------------------------------
+
+def distance_weighted_mean(point_lon = [], point_lat = [], grid_lons = [], grid_lats = [], 
+                       grid_data = [], mask = [],  ellps = 'WGS84',
+                       lat_buffer = 1, lon_buffer = 5,
+                       return_vars = ['neighbor_lons', 'neighbor_lats', 'neighbor_data', 'neighbor_weights', 'weighted_mean'],
+                       max_dist = 50*units('km')):
+    
+    """Find inverse distance - weighted mean value of data at provided lat/lon coordinate from gridded data. Option to simply find and return data from nearest gridded point.
+    
+INPUT:
+- point_lon: longitude to find nearest on grid (range: 0,360)
+- point_lat: latitude to find nearest on grid
+- grid_lons: M x N array of longitude values for geospatial grid (range: 0,360)
+- grid_lats: M x N array of latitude values for geospatial grid
+- grid_data: M x N array of data values corresponding to geospatial grid
+- mask: M x N array filled with bools, True for masked regions to not be considered, and False for
+        gridded lons/lats to include in distance calculations. 
+        If no mask desired, set to [] (default)
+- ellps: named ellipsoid used to create polygon (default: "WGS84")
+- lat_buffer: maximum allowed difference in degrees between latitudes of input vs gridded coordinates.
+    Check this first, if within lat_buffer degrees, then calculate geodesic distance. This is simply a time-saver. 
+    (default: 1 degrees)
+- lon_buffer: maximum allowed difference in degrees between longitude of input vs gridded coordinates.
+    Check this first, if within lon_buffer degrees, then calculate geodesic distance. This is simply a time-saver. 
+    (default: 5 degrees)
+    
+- max_dist: Pint quantity (with Metpy units), maximum allowed distance between provided and nearest gridded point
+    (default: 50*units('km') for 50 km). If nearest gridded point is further than this, return empty values 
+    for nearest points.
+
+
+OUTPUT:
+List of any or all of variables specified in return_vars:
+- nearest_lon: nearest gridded lon to provided point, empty list if none within max_dist
+- nearest_lat: nearest gridded lat to provided point, empty list if none within max_dist
+- nearest_dist: distance of nearest gridded point to provided point, flag value 999.0 km if none within max_dist
+                if nearest_dist == 0.0 (direct match to gridded point), all output variables with 
+                'neighbor' and 'weight' in name will be filled with single values from corresponding matching point.
+- nearest_data: data of nearest gridded point to provided point, empty list if none within max_dist
+- all_dist: M x N array of gridded distances (with metpy units) from provided point, 
+            filled with value representing 999 km where data is masked, points outside lat/lon buffers,
+            and for points farther than max_dist away
+- neighbor_lons: 1 X D array of neighboring longitudes within max_dist of provided point
+                (single value array if direct spatial match)
+- neighbor_lats: 1 X D array of neighboring latitudes within max_dist of provided point
+                (single value array if direct spatial match)
+- neighbor_dist: 1 X D array of distances (with metpy units) between provided point and neighboring points within max_dist
+                (single value array if direct spatial match)
+- neighbor_data: 1 X D array of data values for gridded points within max_dist of provided point
+                (single value array if direct spatial match)
+- neighbor_weights: 1 X D array of inverse distance weights (with metpy units) for gridded points within max_dist of provided point
+                (single value array of unity, unitless if direct spatial match)                
+- weighted_mean: inverse distance-weighted average value of data across gridded points within max_dist of provided point
+                (if direct spatial match, directly return data of corresponding grid point)  
+        
+        
+DEPENDENCIES:
+from pyproj import Geod
+import numpy as np
+from metpy.units import units
+
+Latest recorded update:
+07-05-2023
+    """
+    
+    
+    # check for input errors
+    if point_lon < 0:
+        raise ValueError(f'point_lon should be greater than or equal to zero (range: 0-360), not {point_lon}')
+    if (grid_lons < 0).any():
+        raise ValueError(f'grid_lons should be greater than or equal to zero (range: 0-360). {np.sum(grid_lons < 0)} values found below 0.')
+    if str(type(max_dist)) !=  "<class 'pint.quantity.build_quantity_class.<locals>.Quantity'>":
+        print(str(type(max_dist)))
+        raise TypeError(f"max_dist should include metpy units. If units are km: set as {max_dist}*units('km')")
+    assert len(return_vars) > 0, 'return_vars list is empty. Must have length >=1'
+    
+    # create Geod from ellipsoid name
+    g = Geod(ellps=ellps)
+
+    # use geodesics to find nearest grid coordinate to lead coordinate
+    nearest_dist = max_dist
+    
+    nearest_lat = []
+    nearest_lon = []
+    nearest_data = []
+    
+    # if no mask provided, include all values
+    if len(mask) == 0:
+        mask = np.full(grid_lons.shape, False)
+        
+    # if no data provided, fill with nans
+    if len(grid_data) == 0:
+        grid_data = np.full(grid_lons.shape, np.nan)
+        
+    # create fill vall of 999 km in whatever units provided, then strip units 
+    # create array to save distances from provided points
+    fill_val = ( ( 999.0 * units('km') ).to(max_dist.units) ).magnitude
+    all_dist = np.full_like(grid_lons, fill_val)
+    
+    # run through all gridded points to look for closest point
+    for II in range(np.shape(grid_lons)[0]):   
+        for JJ in range(np.shape(grid_lons)[1]):
+
+            # only calculate distance for not masked values
+            if mask[II,JJ] == False:
+
+                # if grid location within buffer degrees of point
+                # use pyproj to calculate actual distance
+                if np.abs(point_lat-grid_lats[II,JJ])<lat_buffer and np.abs(point_lon-grid_lons[II,JJ])<lon_buffer:
+
+                    # calculate distance between grid point and provided point
+                    # pyproj runs slightly faster than geopy's geodesic            
+                    az12,az21,distance = g.inv(point_lon, point_lat, grid_lons[II,JJ], grid_lats[II,JJ])
+                    # convert distance to provided units, then strip units to save to array
+                    distance = (distance*units('m')).to(max_dist.units)
+                    all_dist[II, JJ] = distance.magnitude
+
+                    # if closer than nearest_dist, replace nearest coords and dist
+                    if distance < nearest_dist:
+                        nearest_dist = distance
+                        nearest_lat = grid_lats[II,JJ]
+                        nearest_lon = grid_lons[II,JJ]
+                        nearest_data = grid_data[II,JJ]
+
+    # if no value found within max_dist of provided point, notify and flag nearest_dist
+    if nearest_dist == max_dist:
+        print(f'Could not find grid coordinate within {max_dist} of {point_lat, point_lon}')
+        nearest_dist = ( 999.0 * units('km') ).to(max_dist.units)
+        
+    # store all output in dictionary
+    vars_dict = {}
+    vars_dict['nearest_lon'] = nearest_lon
+    vars_dict['nearest_lat'] = nearest_lat
+    vars_dict['nearest_dist'] = nearest_dist
+    vars_dict['nearest_data'] = nearest_data
+    
+    # replace points further than max_dist away with fill value
+    # save to dict with units
+    all_dist[all_dist > max_dist.magnitude] = fill_val
+    vars_dict['all_dist'] = all_dist * max_dist.units
+    
+    
+    # if there is a direct match with nearest gridded point and value, 
+    # save nearest points found above as single-value array
+    if nearest_dist.magnitude == 0.0:
+        vars_dict['neighbor_lons'] = np.array([nearest_lon])
+        vars_dict['neighbor_lats'] = np.array([nearest_lat])
+        vars_dict['neighbor_dist'] = np.array([nearest_dist.magnitude])*nearest_dist.units
+        vars_dict['neighbor_data'] = np.array([nearest_data])
+        vars_dict['neighbor_weights'] = np.array([1])
+        vars_dict['weighted_mean'] = nearest_data
+        
+    # if multiple values within max_dist of nearest point, 
+    # calculate inverse distance - weighted mean of data 
+    else:  
+        
+        # find indices of gridded points within max_dist range of point
+        iii, jjj = np.where(all_dist < fill_val)
+
+        # save points to 1-d arrays
+        neighbor_lons = grid_lons[iii, jjj]
+        neighbor_lats = grid_lats[iii, jjj]
+        neighbor_dist = all_dist[iii, jjj]
+        neighbor_data = grid_data[iii, jjj]
+
+        # create inverse distance weights
+        neighbor_weights = (1/neighbor_dist)
+        
+        # calculate weighted mean data value
+        weighted_mean = np.sum(neighbor_data  * neighbor_weights) / np.sum(neighbor_weights)
+        
+        vars_dict['neighbor_lons'] = neighbor_lons
+        vars_dict['neighbor_lats'] = neighbor_lats
+        vars_dict['neighbor_dist'] = neighbor_dist * max_dist.units
+        vars_dict['neighbor_data'] = neighbor_data
+        vars_dict['neighbor_weights'] = neighbor_weights * (1/max_dist.units)
+        vars_dict['weighted_mean'] = weighted_mean
+        
+    # save specified variables to list for output
+    return_data = [vars_dict[var] for var in return_vars]
+    if len(return_data) == 1:
+        return_data = return_data[0]
+    return return_data

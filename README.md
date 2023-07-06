@@ -12,6 +12,9 @@ Functions to download (CDS API) and open ERA5 atmospheric reanalysis data.
 ### LIB_access_PPD.py
 Functions to open NSIDC Polar Pathfinder sea ice drift data (NSIDC-0116)
 
+### LIB_geo_func.py
+Functions for geospatial analysis
+
 ### LIB_geo_plot.py
 Functions for quicker plotting geographic data
 

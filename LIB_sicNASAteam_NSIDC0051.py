@@ -83,6 +83,7 @@ INPUT:
 - quiet: bool, whether or not to supress print statements (default: True)
 
 OUTPUT: 
+List of any or all of variables specified in return_vars:
 - xx: x-coordinates of projected SIC data (M x N array)
 - yy: y-coordinates of projected SIC data (M x N array)
 - sic: SIC data (M x N array)
@@ -102,7 +103,7 @@ import cartopy.crs as ccrs
 grab_projinfo_sicNASAteam
 
 Latest recorded update:
-06-28-2022
+07-03-2023
     """
     
     # assert input variable types

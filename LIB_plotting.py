@@ -60,7 +60,7 @@ def add_colorbar(fig, ax, colorbar_input, cb_placement = 'left', cb_orientation 
                  cb_width = 'auto',  cb_length_fraction = [0,1], cb_pad = 0, 
                  cb_ticks = 'auto', cb_ticklabels = 'auto', 
                  cb_extend='neither', cb_label=' ', labelpad = 'auto', cb_label_placement = 'auto', cb_tick_placement = 'auto',
-                 cb_labelsize = 12, draw_edges=False, edge_params=['k',2], suppress_prints=True):
+                 cb_labelsize = 12, draw_edges=False, edge_params=['k',2]):
     
     """Function for plotting colorbar along edge of figure axis.
 
@@ -125,14 +125,12 @@ Latest recorded update:
             
             CB_INPUT = colorbar_input[0]
         else:
-            if suppress_prints==False:
-                print('colorbar_input is not type matplotlib.collections.QuadMesh nor cartopy.mpl.contour.GeoContourSet')
+            print('colorbar_input is not type matplotlib.collections.QuadMesh nor cartopy.mpl.contour.GeoContourSet')
     # if colorbar_input is [cmap, norm]
     elif len(colorbar_input) == 2:
         CB_INPUT = cm.ScalarMappable(norm=colorbar_input[1], cmap=colorbar_input[0])
     else:
-        if suppress_prints==False:
-            print('unrecognized colorbar_input, should be of length 1 or 2')
+        print('unrecognized colorbar_input, should be of length 1 or 2')
     
     # generate plot axes
     #=================================
