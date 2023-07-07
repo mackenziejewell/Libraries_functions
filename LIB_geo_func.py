@@ -554,7 +554,7 @@ INPUT:
 - lon_buffer: maximum allowed difference in degrees between longitude of input vs gridded coordinates.
     Check this first, if within lon_buffer degrees, then calculate geodesic distance. This is simply a time-saver. 
     (default: 5 degrees)
-    
+- return_vars: list of variable names to return
 - max_dist: Pint quantity (with Metpy units), maximum allowed distance between provided and nearest gridded point
     (default: 50*units('km') for 50 km). If nearest gridded point is further than this, return empty values 
     for nearest points.
@@ -591,7 +591,7 @@ import numpy as np
 from metpy.units import units
 
 Latest recorded update:
-07-05-2023
+07-07-2023
     """
     
     
@@ -601,7 +601,6 @@ Latest recorded update:
     if (grid_lons < 0).any():
         raise ValueError(f'grid_lons should be greater than or equal to zero (range: 0-360). {np.sum(grid_lons < 0)} values found below 0.')
     if str(type(max_dist)) !=  "<class 'pint.quantity.build_quantity_class.<locals>.Quantity'>":
-        print(str(type(max_dist)))
         raise TypeError(f"max_dist should include metpy units. If units are km: set as {max_dist}*units('km')")
     assert len(return_vars) > 0, 'return_vars list is empty. Must have length >=1'
     
