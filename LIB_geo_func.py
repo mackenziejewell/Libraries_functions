@@ -35,9 +35,24 @@
 #---------------------------------------------------------------------
 # Find mean value of data within polygon from indices of data_grid
 #---------------------------------------------------------------------
-
-
-
+#//////////////////////////////
+#  distance_weighted_mean  ///
+#////////////////////////////
+#---------------------------------------------------------------------
+# Find inverse distance - weighted mean value of data at provided lat/lon coordinate from gridded data.
+#---------------------------------------------------------------------
+#///////////////////////////
+#  make_geodesic_paths  ///
+#/////////////////////////
+#---------------------------------------------------------------------
+# Create geodesic paths
+#---------------------------------------------------------------------
+#//////////////////////
+#  lonlat_to_proj  ///
+#////////////////////
+#---------------------------------------------------------------------
+# Convert lat/lon coordinates to projected coordinates using cartopy.
+#---------------------------------------------------------------------
 
 #////////////////////
 #  make_polygon  ///
@@ -697,3 +712,185 @@ Latest recorded update:
     if len(return_data) == 1:
         return_data = return_data[0]
     return return_data
+
+
+
+#///////////////////////////
+#  make_geodesic_paths  ///
+#/////////////////////////
+#---------------------------------------------------------------------
+# Create geodesic paths
+#---------------------------------------------------------------------
+# DEPENDENCIES
+import numpy as np
+from metpy.units import units
+from pyproj import Geod
+#---------------------------------------------------------------------
+
+def make_geodesic_paths(method = 'constant_azimuth',
+                        c1 = (200, 70), c2 = (200, 71), N = 10, 
+                        azimuth = 0 * units('degree'), distance = 25*units('km'), 
+                        g = Geod(ellps='WGS84'), quiet = True):
+    
+    """Create equally-spaced paths along constant geodesic between specified points or with constant azimuth.
+
+INPUT: 
+- method: method to create the path:
+    if 'constant_azimuth': use c1, azimuth, and N to create path with N-1 new points from c1.
+                            At each step, create next step from local azimuth orientation. 
+                            Terminal point cannot be specified. (uses pyproj g.fwd)
+    if 'geodesic_npts': use c1, c2, and N to create path with N-2 new points between c1 and c2.
+                        Local azimuth changes at each point if lon/lat changes between c1/c2. 
+                        Points are evenly-spaced, but spacing size and local azimuths cannot 
+                        be specified. (uses pyproj g.npts)
+- c1: tuple of (lon, lat) of starting point.
+- c2: tuple of (lon, lat) of terminus point.
+- N: int, total number of points in path. Must be 2 or greater.
+- azimuth: angle in degrees or radians from Northward (+ CW)
+           must include metpy units as degrees or radians (default 0 * units('degree'))
+- g: geod to use for pyproj geodesic calculations (default: Geod(ellps='WGS84'))
+- quiet: bool, whether or not to suppress prints (default: True)
+
+OUTPUT:
+- path: (N x 2) array of lon (axis 0) and lat (axis 1) coords. 
+
+DEPENDENCIES:
+import numpy as np
+from metpy.units import units
+from pyproj import Geod
+
+Latest recorded update:
+07-06-2023
+    """
+    
+    if str(type(distance)) !=  "<class 'pint.quantity.build_quantity_class.<locals>.Quantity'>":
+        print(str(type(distance)))
+        raise TypeError(f"distance should include metpy units. If units are km: set as {distance}*units('km')")
+    if str(type(azimuth)) !=  "<class 'pint.quantity.build_quantity_class.<locals>.Quantity'>":
+        print(str(type(azimuth)))
+        raise TypeError(f'azimuth should include metpy units "degree" or "radian". If units are degree: set as {azimuth}*units("degree")')
+    if N < 2:
+        raise ValueError('N must be 2 or greater.')
+        
+    # convert distance to meters and azimuth to degrees
+    distance_m = ( distance.to('m') ).magnitude
+    azimuth_d = ( azimuth.to('degree') ).magnitude
+    
+    # unpack coords
+    lon1, lat1 = c1
+    lon2, lat2 = c2
+    
+    if not quiet:
+        print(f'>> create path with {method} method, N = {N} points') 
+        print(f'>> start point: {c1}')
+        
+        if str(method) == 'geodesic_npts':
+            print(f'>> terminus point: {c2}')
+            print(f'>> add {N-2} points in between')
+        elif str(method) == 'constant_azimuth':
+            print(f'>> add {N-1} points, maintaining azimuth = {azimuth}')
+        
+    
+    # create path including initial / final points
+    #----------------------------------------------
+    # initial point
+    path_lon = np.array([lon1])
+    path_lat = np.array([lat1])
+    
+    
+    # middle and final points, depending on method
+    
+    # method 1
+    #----------------------
+    if str(method) == 'geodesic_npts':
+        # create path with N equally spaced points between start and terminus
+        lonlats = g.npts( lon1,lat1, lon2,lat2, N-2 )
+        # intermediate points
+        for ll in range(len(lonlats)):
+            path_lon = np.append(path_lon, lonlats[ll][0])
+            path_lat = np.append(path_lat, lonlats[ll][1])
+        # final point
+        path_lon = np.append(path_lon, lon2)
+        path_lat = np.append(path_lat, lat2)
+    
+    # method 2
+    #----------------------
+    elif str(method) == 'constant_azimuth':
+        for ii in range(N-1):
+            if ii == 0:
+                lon2, lat2 = lon1, lat1
+            lon2, lat2, az = g.fwd(lon2, lat2, azimuth_d, distance_m)
+            path_lon = np.append(path_lon, lon2)
+            path_lat = np.append(path_lat, lat2)
+            
+    # convert to (0, 360) range
+    path_lon[path_lon<0]+=360
+
+    # stack 
+    path = np.stack((path_lon, path_lat), axis=1)
+    
+    return path
+
+
+
+
+#//////////////////////
+#  lonlat_to_proj  ///
+#////////////////////
+#---------------------------------------------------------------------
+# Convert lat/lon coordinates to projected coordinates using cartopy.
+#---------------------------------------------------------------------
+# DEPENDENCIES
+import numpy as np
+import numpy.ma as ma
+import cartopy
+import cartopy.crs as ccrs
+#---------------------------------------------------------------------
+
+def lonlat_to_proj(lonlats = np.array([[200,70],[200,71]]), proj_crs=[], quiet = True):
+    
+    """Convert lat/lon coordinates to projected coordinates using cartopy.
+    
+INPUT:
+- lonlats: N x 2 array of (lon, lat) coordinates. Lons are axis 0, lats are axis 1.
+    default: np.array([[200,70],[200,71]])
+- proj_crs: cartopy projection 
+    (e.g. ccrs.LambertAzimuthalEqualArea(central_longitude=0, central_latitude=90,
+    globe=ccrs.Globe(semimajor_axis = 6371228, semiminor_axis = 6371228)))
+- quiet: bool True/False, whether or not to suppress print statements as function runs 
+  (default: True)
+  
+OUTPUT:
+- xx_yy_proj: N x 2 array of projected (xx, yy) coordinates
+
+DEPENDENCIES:
+import numpy as np
+import numpy.ma as ma
+import cartopy
+import cartopy.crs as ccrs
+
+Latest recorded update:
+07-06-2023
+    
+    """
+    
+    if type(proj_crs) == list:
+        raise TypeError(f'proj_crs should be cartopy.crs projection, not {type(proj_crs)}')
+    
+    if not quiet:
+            print(f'(lon, lat) --> (xx, yy):\n-----------------------')
+                  
+    # transform point by point and save to xx_yy_projs
+    xx_yy_projs = np.array([])
+    for lonlat in lonlats:
+        # make the transformation
+        xx_yy = proj_crs.transform_point(*lonlat, src_crs=ccrs.PlateCarree())
+        xx_yy_projs = np.append(xx_yy_projs, xx_yy)
+        if not quiet:
+            print(f'({lonlat[0]:.2f}, {lonlat[1]:.2f}) --> ({xx_yy[0]:.2f}, {xx_yy[1]:.2f})')
+        
+    # reshape to be (N X 2)
+    xx_yy_projs = np.reshape(xx_yy_projs, np.shape(lonlats))
+    
+    return xx_yy_projs
+    
