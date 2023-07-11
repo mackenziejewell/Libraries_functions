@@ -266,7 +266,7 @@ from scipy.interpolate import griddata
 #---------------------------------------------------------------------
 
 def regrid_geo_data(latgrid_initial,longrid_initial,datagrid_initial,latgrid_final,longrid_final, 
-                   check_nan_grid = 'None', regrid_method = 'linear'):
+                    check_nan_grid = 'None', regrid_method = 'linear', quiet = True):
     """Regrid data given initial data grid and desired geo grid.
 
 INPUT: 
@@ -277,8 +277,8 @@ INPUT:
 - longrid_final: (m x n) array of longitudes from desired geo grid
 - check_nan_grid: if desired, supply grid that may contain nans that matches shape of input grids.
   If none supplied, will default to checking datagrid_initial for nans and eliminating them
-- regrid_method: method for regridding data (defualt: 'linear')
-                   
+- regrid_method: method for regridding data (default: 'linear')
+- quiet: bool, whether or not to supress print statements (default: True)            
 
 OUTPUT:
 - datagrid_final: (m x n) array of regridded data on desired geo grid
@@ -288,7 +288,7 @@ import numpy as np
 from scipy.interpolate import griddata
 
 Latest recorded update:
-05-03-2022
+07-10-2023
     """
     
     
@@ -299,10 +299,12 @@ Latest recorded update:
         reshape_lon_initial = np.concatenate(longrid_initial,axis=0)
         # check for nans to eliminate from calcs
         if str(check_nan_grid) != 'None':
-            print('Using nan_grid to eliminate nans from calculations.')
+            if not quiet:
+                print('Using nan_grid to eliminate nans from calculations.')
             NO_NANS = (np.isnan(np.concatenate(check_nan_grid,axis=0)) == False)
         else:
-            print('Checking for nans in datagrid_initial to eliminate nans from calculations.')
+            if not quiet:
+                print('Checking for nans in datagrid_initial to eliminate nans from calculations.')
             NO_NANS = (np.isnan(reshape_data) == False)
         
     # if already 1D, do nothing
@@ -312,10 +314,12 @@ Latest recorded update:
         reshape_lon_initial = longrid_initial
         # check for nans to eliminate from calcs
         if str(check_nan_grid) != 'None':
-            print('Using nan_grid to eliminate nans from calculations.')
+            if not quiet:
+                print('Using nan_grid to eliminate nans from calculations.')
             NO_NANS = (np.isnan(check_nan_grid) == False)
         else:
-            print('Checking for nans in datagrid_initial to eliminate nans from calculations.')
+            if not quiet:
+                print('Checking for nans in datagrid_initial to eliminate nans from calculations.')
             NO_NANS = (np.isnan(reshape_data) == False)
     else:
         print('Unfamiliar array dimensions of input grids. Must be 1D or 2D.')
