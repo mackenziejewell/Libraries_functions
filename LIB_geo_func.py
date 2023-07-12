@@ -53,6 +53,22 @@
 #---------------------------------------------------------------------
 # Convert lat/lon coordinates to projected coordinates using cartopy.
 #---------------------------------------------------------------------
+#//////////////////////
+#  proj_to_lonlat  ///
+#////////////////////
+#---------------------------------------------------------------------
+# Convert projected coordinates to lat/lon using cartopy.
+#---------------------------------------------------------------------
+#////////////////////////
+#  calc_wind_angle   ///
+#//////////////////////
+#---------------------------------------------------------------------
+# Calculate wind angle from u, v wind components
+#---------------------------------------------------------------------
+
+
+
+
 
 #////////////////////
 #  make_polygon  ///
@@ -850,21 +866,20 @@ import cartopy
 import cartopy.crs as ccrs
 #---------------------------------------------------------------------
 
-def lonlat_to_proj(lonlats = np.array([[200,70],[200,71]]), proj_crs=[], quiet = True):
+def lonlat_to_proj(lons = np.array([200,70]), lats = np.array([200,71]), proj_crs=[]):
     
     """Convert lat/lon coordinates to projected coordinates using cartopy.
     
 INPUT:
-- lonlats: N x 2 array of (lon, lat) coordinates. Lons are axis 0, lats are axis 1.
-    default: np.array([[200,70],[200,71]])
+- lons: M x N array of longitudes
+- lats: M x N array of latitudes
 - proj_crs: cartopy projection 
     (e.g. ccrs.LambertAzimuthalEqualArea(central_longitude=0, central_latitude=90,
     globe=ccrs.Globe(semimajor_axis = 6371228, semiminor_axis = 6371228)))
-- quiet: bool True/False, whether or not to suppress print statements as function runs 
-  (default: True)
   
 OUTPUT:
-- xx_yy_proj: N x 2 array of projected (xx, yy) coordinates
+- xx_projs: M x N array of projected xx coordinates
+- yy_projs: M x N array of projected yy coordinates
 
 DEPENDENCIES:
 import numpy as np
@@ -873,27 +888,201 @@ import cartopy
 import cartopy.crs as ccrs
 
 Latest recorded update:
-07-06-2023
+07-11-2023
     
     """
     
     if type(proj_crs) == list:
         raise TypeError(f'proj_crs should be cartopy.crs projection, not {type(proj_crs)}')
+    assert np.shape(lons) == np.shape(lats), f'lons {np.shape(lons)} should have same shape as lats {np.shape(lats)}'
     
-    if not quiet:
-            print(f'(lon, lat) --> (xx, yy):\n-----------------------')
-                  
-    # transform point by point and save to xx_yy_projs
-    xx_yy_projs = np.array([])
-    for lonlat in lonlats:
-        # make the transformation
-        xx_yy = proj_crs.transform_point(*lonlat, src_crs=ccrs.PlateCarree())
-        xx_yy_projs = np.append(xx_yy_projs, xx_yy)
-        if not quiet:
-            print(f'({lonlat[0]:.2f}, {lonlat[1]:.2f}) --> ({xx_yy[0]:.2f}, {xx_yy[1]:.2f})')
+    array_dim = len(np.shape(lons))
+    assert array_dim in [1,2], f'lons/lats should have 1 or 2 dimnesions, not {array_dim}'
+    
+    # transform all points
+    xx_yy_projs = proj_crs.transform_points(ccrs.PlateCarree(), lons, lats, None)
+    
+    # grab needed portions depending on array dimensions
+    if array_dim == 1:
+        xx_projs = xx_yy_projs[:,0]
+        yy_projs = xx_yy_projs[:,1]
+    elif array_dim == 2:
+        xx_projs = xx_yy_projs[:,:,0]
+        yy_projs = xx_yy_projs[:,:,1]
         
-    # reshape to be (N X 2)
-    xx_yy_projs = np.reshape(xx_yy_projs, np.shape(lonlats))
+    return xx_projs, yy_projs
+
+
+#//////////////////////
+#  proj_to_lonlat  ///
+#////////////////////
+#---------------------------------------------------------------------
+# Convert projected coordinates to lat/lon using cartopy.
+#---------------------------------------------------------------------
+# DEPENDENCIES
+import numpy as np
+import numpy.ma as ma
+import cartopy
+import cartopy.crs as ccrs
+#---------------------------------------------------------------------
+
+def proj_to_lonlat(xx = np.array([0,1]), yy = np.array([1,0]), proj_crs=[]):
     
-    return xx_yy_projs
+    """Convert projected coordinates to lat/lon using cartopy.
+    
+INPUT:
+- xx: M x N array of projected xx coordinates
+- yy: M x N array of projected yy coordinates
+- proj_crs: cartopy projection 
+    (e.g. ccrs.LambertAzimuthalEqualArea(central_longitude=0, central_latitude=90,
+    globe=ccrs.Globe(semimajor_axis = 6371228, semiminor_axis = 6371228)))
+  
+OUTPUT:
+- lons: M x N array of longitudes
+- lats: M x N array of latitudes
+
+DEPENDENCIES:
+import numpy as np
+import numpy.ma as ma
+import cartopy
+import cartopy.crs as ccrs
+
+Latest recorded update:
+07-11-2023
+    
+    """
+    
+    if type(proj_crs) == list:
+        raise TypeError(f'proj_crs should be cartopy.crs projection, not {type(proj_crs)}')
+    assert np.shape(xx) == np.shape(yy), f'xx {np.shape(xx)} should have same shape as yy {np.shape(yy)}'
+    
+    array_dim = len(np.shape(xx))
+    assert array_dim in [1,2], f'xx/yy should have 1 or 2 dimnesions, not {array_dim}'
+    
+    # transform all points
+    lonlats = ccrs.PlateCarree().transform_points(proj_crs, xx, yy, None)
+    
+    # grab needed portions depending on array dimensions
+    if array_dim == 1:
+        lons = lonlats[:,0]
+        lons[lons<0]+=360
+        lats = lonlats[:,1]
+    elif array_dim == 2:
+        lons = lonlats[:,:,0]
+        lons[lons<0]+=360
+        lats = lonlats[:,:,1]
+        
+    return lons, lats
+
+
+#////////////////////////
+#  calc_wind_angle   ///
+#//////////////////////
+#---------------------------------------------------------------------
+# Calculate wind angle from u, v wind components
+#---------------------------------------------------------------------
+# DEPENDENCIES:
+import numpy as np, numpy.ma as ma
+#---------------------------------------------------------------------
+
+def calc_wind_angle(u, v, direction = 'blow_to', units = 'rad', angle_range = '180'):
+
+    """Calculate wind angle from u, v wind components
+    
+INPUT: 
+- u: eastward wind components, ideally as numpy arrays (can also handle lists, integers, floats)
+- v: northward wind components, ideally as numpy arrays (can also handle lists, integers, floats)
+- units: units to return angles. Either 'deg' for degrees or 'rad' for radians
+         (default: 'rad')
+- direction: whether to return direction wind is blowing toward or blowing from
+              'blow_to': (default). Direction wind is blowing toward 
+                         (e.g. [u,v] = [1,0] --> dir = 0, eastward)
+                        centered at Eastward = 0
+              'blow_from': Direction wind is blowing from 
+                          (e.g. [u,v] = [1,0] --> dir = 3pi/4 or 270 deg, westerly)
+                        centered at northerly = 0
+- angle_range: range of angle outputs, only applies under 'blow_to' since default
+                 for 'blow_from' is [0,2pi] or [0,360]
+                 ('180' gives [-pi,pi]  or [-180,180], default)
+                 ('360' gives [0,2pi] or [0,360])
+
+OUTPUT:
+- angle --> numpy array of wind angle(s) in degrees or radians
+
+DEPENDENCIES:
+import numpy as np, numpy.ma as ma
+
+Latest recorded update:
+04-25-2022
+    """
+    
+    # convert to numpy arrays if not already
+    if str(type(u))!="<class 'numpy.ndarray'>":
+        if str(type(u))== "<class 'list'>":
+            u = np.array(u)
+        elif str(type(u))== "<class 'int'>":
+            u = np.array([u])
+        elif str(type(u))== "<class 'float'>":
+            u = np.array([u])
+        else:
+            print('ERROR: unrecognized data type for u variable, pass u as numpy array, list, int, or float \n-----')
+    if str(type(v))!="<class 'numpy.ndarray'>":
+        if str(type(v))== "<class 'list'>":
+            v = np.array(v)
+        elif str(type(v))== "<class 'int'>":
+            v = np.array([v])
+        elif str(type(v))== "<class 'float'>":
+            v = np.array([v])
+        else:
+            print('ERROR: unrecognized data type for v variable, pass v as numpy array, list, int, or float \n-----')
+    
+    
+    # calculate angle from u,v
+    angle = np.arctan2(v,u)
+
+    # shift to desired zero
+    if str(direction) == 'blow_from':
+        
+        angle = 3*np.pi/2-angle 
+        
+         # shift for 1-dim array
+        if len(np.shape(angle)) == 1:
+            for ii in range(np.shape(angle)[0]):
+                if angle[ii]>=2*np.pi:
+                    angle[ii] += -2*np.pi
+        # shift for 2-dim array
+        elif len(np.shape(angle)) == 2:
+            for ii in range(np.shape(angle)[0]):
+                for jj in range(np.shape(angle)[1]):
+                    if angle[ii][jj]>=2*np.pi:
+                        angle[ii][jj] += -2*np.pi
+        else:
+            print('ERROR: input data 3 dimensions or greater. Should be 1- or 2-dimensional')
+            
+
+    # shift range from (-180,180) to (0, 360) if desired
+    if str(angle_range) == '360':
+        
+        # shift for 1-dim array
+        if len(np.shape(angle)) == 1:
+            for ii in range(np.shape(angle)[0]):
+                if angle[ii]<0:
+                    angle[ii] += 2*np.pi
+        # shift for 2-dim array
+        elif len(np.shape(angle)) == 2:
+            for ii in range(np.shape(angle)[0]):
+                for jj in range(np.shape(angle)[1]):
+                    if angle[ii][jj]<0:
+                        angle[ii][jj] += 2*np.pi
+        else:
+            print('ERROR: input data 3 dimensions or greater. Should be 1- or 2-dimensional')
+
+    # covert to degrees if specified
+    if str(units) == 'deg':
+        angle = angle*180/np.pi
+    
+    return angle
+    
+    
+    
     
