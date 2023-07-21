@@ -392,8 +392,17 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 
 Latest recorded update:
-06-23-2023
+07-21-2023
     """
+    
+    
+    # start first by shifting lon_grid to [-180,180]
+    # since shapely polygons like to use this longitude range
+    # return grid to [0,360 later]
+    return_grid = False
+    if np.sum(lon_grid>=180) > 0:
+        lon_grid[lon_grid>=180]-=360
+        return_grid = True
     
     # run through coordinates in geographic grids and determine whether they're in polygon
     poly_Coords = []
@@ -468,6 +477,10 @@ Latest recorded update:
 
     poly_indices = reshaped_coords.astype(int)
     
+    # if grid was shifted [0,180], return to [0,360]
+    if return_grid:
+        lon_grid[lon_grid<0]+=360
+        
     return poly_indices
 
 
@@ -484,56 +497,123 @@ import numpy as np
 import numpy.ma as ma
 #---------------------------------------------------------------------
 
-def polygon_mean_from_indices(polygon_indices, data_grid, lat_grid, weight_lats=False, quiet = True):
+def polygon_mean_from_indices(polygon_indices, data_grid, lat_grid, weight_lats=False, nan_thresh = 1, quiet = True):
     
     """Find mean value of data within polygon from indices of data_grid (and associated lat_grid/lon_grid) that fall within polygon. Apply latitude-weighting from lat_grid if geo grids do not have equidistant spacing.
     
 INPUT:
-- polygon_indices: N x 2 array of within-polygon indices for lat_grid/lon_grid. N [ii,jj] pairs to access lat_grid[ii,jj] and lon_grid[ii,jj] points.
-- data_grid: MxN variable grid
+- polygon_indices: L x 2 array of within-polygon indices for lat_grid/lon_grid. 
+                    L [ii,jj] pairs to access lat_grid[ii,jj] and lon_grid[ii,jj] points.
+- data_grid: MxN or SxMxN variable grid (if variable grid has time along first dimension)
 - lat_grid: MxN latitude grid
 - weight_lats: bool True/False, whether or not to weight mean by latitudes
         (for use in data gridded in non equal-area projections)
         (default: False)
+- nan_thresh: fraction of nans allowed in spatial means (default: 1, no threshold)
+    if more than nan_thresh fraction of nans were used in spatial mean, return nan.
 - quiet: bool True/False, whether or not to suppress print statements as function runs
     (default: True)
 
 OUTPUT:
-- poly_variable_mean: mean value of data_grid within given polygon
+- poly_variable_mean: mean value of data_grid within given polygon (if data_grid has MxN shape)
+    if data_grid has SxMxN shape, poly_variable_mean is Sx1 array of mean values.
 
 DEPENDENCIES:
 import numpy as np
 import numpy.ma as ma
 
 Latest recorded update:
-06-23-2023
+07-21-2023
     """
     
-    polygon_data = np.array([])
-    polygon_lats = np.array([])
+   
+    # if data has (time, lat, lon) dimensions
+    #----------------------------------------
+    if len(np.shape(data_grid)) == 3:
+        
+        
+        # collect the data
+        #-----------------
+        all_poly_variable_data = np.array([])
+        # run through all of first dimenssion and grab coordinates
+        for ss in range(np.shape(data_grid)[0]):
+            polygon_data = np.array([])
+            # just once, grab all lats within polygon
+            if ss == 0:
+                polygon_lats = np.array([])
+                for coordinate in polygon_indices:
+                    polygon_lats = np.append(polygon_lats, lat_grid[coordinate[0],coordinate[1]])
+            # run through and grab data for each ss
+            for coordinate in polygon_indices:
+                polygon_data = np.append(polygon_data, data_grid[ss,coordinate[0],coordinate[1]])
+            # save to master list
+            all_poly_variable_data = np.append(all_poly_variable_data, polygon_data)    
+        # reshape data to (ss, num lats) shape
+        poly_var_data = np.reshape(all_poly_variable_data, (np.shape(data_grid)[0], len(polygon_lats)))
+       
     
-    # run through and grab data
-    for coordinate in polygon_indices:
-        polygon_data = np.append(polygon_data, data_grid[coordinate[0],coordinate[1]])
-        polygon_lats = np.append(polygon_lats, lat_grid[coordinate[0],coordinate[1]])
-        
-    if not quiet:
-        print('Calculating variable mean within polygon')
-        
-    if weight_lats==False:
+        # calculate the mean
+        #-------------------
+        if weight_lats==False:
+            if not quiet:
+                print('--> Latitude weighting NOT applied')
+            # calculate means
+            poly_variable_mean = np.nanmean(poly_var_data, axis=1)
+        else:
+            if not quiet:
+                print('--> Latitude weighting applied')
+            # calculate area-weighted mean with lat wieghts
+            lat_weights=np.cos(np.pi*polygon_lats/180)
+            poly_variable_mean = np.nansum(poly_var_data * lat_weights, axis=1)/np.sum(lat_weights)
+    
+    
+        # replace data where there are more than allowed nans as nan
+        nan_frac = np.sum(np.isnan(poly_var_data), axis=1) / np.shape(poly_var_data)[1]
+        poly_variable_mean[nan_frac > nan_thresh] = np.nan
+            
         if not quiet:
-            print('--> Latitude weighting NOT applied')
-        poly_variable_mean = np.nanmean(polygon_data)
+            print('....')
+            print(f'variable mean: {poly_variable_mean}')
+
+
+    # if data has (lat, lon) dimensions
+     #---------------------------------
+    elif len(np.shape(data_grid)) == 2:
+        
+        # collect the data
+        #-----------------
+        polygon_data = np.array([])
+        polygon_lats = np.array([])
+        # run through and grab data
+        for coordinate in polygon_indices:
+            polygon_data = np.append(polygon_data, data_grid[coordinate[0],coordinate[1]])
+            polygon_lats = np.append(polygon_lats, lat_grid[coordinate[0],coordinate[1]])
+            
+        # calculate the mean
+        #-------------------
+        if weight_lats==False:
+            if not quiet:
+                print('--> Latitude weighting NOT applied')
+            poly_variable_mean = np.nanmean(polygon_data)
+        else:
+            if not quiet:
+                print('--> Latitude weighting applied')
+            lat_weights=np.cos(np.pi*polygon_lats/180)
+            poly_variable_mean = np.sum(lat_weights*polygon_data)/np.sum(lat_weights)
+            
+            
+        # replace with nan if there are more than allowed nans
+        nan_frac = np.sum(np.isnan(polygon_data)) / len(polygon_data)
+        if nan_frac > nan_thresh:
+            poly_variable_mean = np.nan
+        
+        if not quiet:
+            print('....')
+            print(f'variable mean: {poly_variable_mean:.2f}')
+        
     else:
-        if not quiet:
-            print('--> Latitude weighting applied')
-        lat_weights=np.cos(np.pi*polygon_lats/180)
-        poly_variable_mean = np.sum(lat_weights*polygon_data)/np.sum(lat_weights)
-        
-    if not quiet:
-        print('....')
-        print(f'variable mean: {poly_variable_mean:.2f}')
-        
+        print(f'data_grid can have 2 or 3 dimensions, not {len(np.shape(data_grid))}')
+
     return poly_variable_mean
         
     
