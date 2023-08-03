@@ -2,6 +2,8 @@
 
 Collections of up-to-date functions useful across a variety of projects.
 
+### LIB_AMSR89_NSIDCAU_SI6.py
+Functions to open / modify locally stored AMSR 89 GHz Tb .he5 or .nc files (NSIDC-AU_SI6)
 
 ### LIB_iceage_NSIDC0611.py
 Functions to open locally-stored NSIDC sea ice age data
