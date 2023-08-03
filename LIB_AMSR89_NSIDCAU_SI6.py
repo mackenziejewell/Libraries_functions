@@ -487,7 +487,7 @@ def crop_data(lon=[], lat=[], VARS=[], lon_range=[180, 260], lat_range=[65,90]):
     """Crop lats, lons, variables on non-equirectangular grid to within given lat/lon range.
     
 INPUT:
-- VARS: (Lx1) list of variables, each with shape (MxN) 
+- VARS: (Lx1) list of variables, each with shape (MxN). Even if just one variable, enclose in brackets as list.
 - lon: (MxN) longitude grid (0 to 360) associated with VARS list
 - lat: (MxN) latitude grid associated with VARS lists
 - lon_range:longitude range for cropping (defined 0 to 360)
@@ -496,14 +496,14 @@ INPUT:
     (default: [65,90])
 
 OUTPUT:
-- lon, lat, u, v  --> cropped input grids
+- lon, lat, VARS  --> cropped input grids
     
 DEPENDENCIES:
 import numpy as np
 import numpy.ma as ma
 
 Latest recorded update:
-08-02-2023
+08-03-2023
     """
     
     # grab min and max lat/lon values
