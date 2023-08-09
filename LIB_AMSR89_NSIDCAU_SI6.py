@@ -1,4 +1,16 @@
 #/////////////////////////////
+#  create_AMSRnc_cellarea ///
+#///////////////////////////
+#---------------------------------------------------------------------
+# Create cropped pixel area file corresponding to locally-created .nc files
+#---------------------------------------------------------------------
+#/////////////////////////////
+#  create_AMSRnc_landmask ///
+#///////////////////////////
+#---------------------------------------------------------------------
+# Create cropped landmask corresponding to locally-created .nc files
+#---------------------------------------------------------------------
+#/////////////////////////////
 #  convert_AMSR_he5_to_nc ///
 #///////////////////////////
 #---------------------------------------------------------------------
@@ -16,6 +28,198 @@
 #---------------------------------------------------------------------
 # Crop AMSR data and coords to within given lat/lon range
 #---------------------------------------------------------------------
+
+
+#/////////////////////////////
+#  create_AMSRnc_cellarea ///
+#///////////////////////////
+#---------------------------------------------------------------------
+# Create cropped pixel area file corresponding to locally-created .nc files
+#---------------------------------------------------------------------
+# DEPENDENCIES:
+from pyhdf.SD import SD, SDC
+import datetime
+import numpy as np
+import xarray as xr
+# from LIB_AMSR89_NSIDCAU_SI6 import read_AMSR_he5, crop_data
+#---------------------------------------------------------------------
+def create_AMSRnc_cellarea(AMSR_area_file = '/Users/mackenziejewell/Data/AMSR89Tb_NSIDCAU_SI6/NSIDC0771_CellArea_PS_N6.25km_v1.0.nc',
+                           AMSR_he5_file = '/Users/mackenziejewell/Data/AMSR89Tb_NSIDCAU_SI6/AMSR_U2_L3_SeaIce6km_B04_20210101.he5',
+                           lon_range = [180, 260],
+                           lat_range = [65, 90]):
+    """Create cropped landmask corresponding to locally-created cropped 6.25 km 89 GHz Tb from locally-stored .he5 NSIDC data (NSIDC-AU_SI6, doi: 10.5067/NX1R09ORNOZN)
+INPUT: 
+- AMSR_area_file: path to locally stored NSIDC AMSR 6.25 km pixel area file (NSIDC0771_CellArea_PS_N6.25km_v1.0.nc)
+    Downloaded from: https://nsidc.org/data/nsidc-0771/versions/1
+    [Polar Stereographic Ancillary Grid Information, Version 1 NSIDC-0771 doi:10.5067/N6INPBT8Y104]
+- AMSR_he5_file = path to locally stored NSIDC AMSR 6.25 km he5 file (doi: 10.5067/NX1R09ORNOZN)
+    for spatial reference of desired lat/long grid to crop to
+    (default: '/Users/mackenziejewell/Data/AMSR89Tb_NSIDCAU_SI6/AMSR_U2_L3_SeaIce6km_B04_20210101.he5')
+- lon_range: [lonmin, lonmax] to crop, values in range (0,360). default: [180, 260]
+- lat_range: [latmin, latmax] to crop. default: [65,90]
+
+OUTPUT:
+- lon_crop: (M x N) cropped longitude grid
+- lat_crop: (M x N) cropped latitude grid
+- area_crop: (M x N) area (m^2) cropped to provided lon/lat range.
+
+DEPENDENCIES:
+from pyhdf.SD import SD, SDC
+import datetime
+import numpy as np
+import xarray as xr
+
+# homemade function
+from LIB_AMSR89_NSIDCAU_SI6 import read_AMSR_he5, crop_data
+
+
+Latest recorded update:
+08-08-2023
+    """
+    
+    # open pixel area data (1792 x 1216)
+    #---------------------------------
+    ds = xr.open_dataset(AMSR_area_file)
+    area = ds.cell_area.values # meters ^ 2
+
+    # open original.hef data (1792 x 1216)
+    #-------------------------------------
+    # extract file info to input into read_AMSR_he5 
+    AMSR_filepath = AMSR_he5_file[:AMSR_he5_file.find(AMSR_he5_file.split('/')[-1])]
+    AMSR_datestring = AMSR_he5_file.split('/')[-1].split('.')[0].split('_')[-1]
+    AMSR_date = datetime.datetime.strptime(AMSR_datestring, '%Y%m%d')
+
+    # grab lat lon data from .he5 file
+    [LAT, LON] = read_AMSR_he5(date=AMSR_date, 
+                               filepath=AMSR_filepath, 
+                               filename_convention='AMSR_U2_L3_SeaIce6km_B04_{}{}{}.he5', 
+                               hemisphere='N', add_units=False, 
+                               return_vars=['lat', 'lon'], quiet=False)
+    
+    # crop pixel area to
+    # match files saved to .nc cropped as (M x N)
+    #-------------------------------------
+    lon_crop, lat_crop, [area_crop] = crop_data(lon=LON, lat=LAT, VARS=[area], 
+                                                     lon_range=lon_range, lat_range=lat_range)
+
+    return lon_crop, lat_crop, area_crop
+
+
+
+# # create netCDF data set
+# #-----------------------
+# ds = xr.Dataset(data_vars=dict(
+#     pixelarea = (["x", "y"], area_crop, 
+#                {"description":"pixel area", "units": 'meters^2'})),
+# coords=dict(
+#     longitude = (["x", "y"], lon_crop, {"units": 'degrees_east'}),
+#     latitude  = (["x", "y"], lat_crop, {"units": 'degrees_north'}),
+# ),
+# attrs=dict(
+#     description = (f"Pixel area corresponding to 6.25 km 89 GHz brightness temperatures, cropped ([{lat_range[0]},{lat_range[1]}], [{lon_range[0]},{lon_range[1]}]). (NSIDC-0771, doi: 10.5067/N6INPBT8Y104)"), 
+#     ),
+# )
+# ds.to_netcdf(path='/Users/mackenziejewell/Data/AMSR89Tb_NSIDCAU_SI6/AMSR_6km_area.nc', mode='w', format="NETCDF4")
+
+
+#/////////////////////////////
+#  create_AMSRnc_landmask ///
+#///////////////////////////
+#---------------------------------------------------------------------
+# Create cropped landmask corresponding to locally-created .nc files
+#---------------------------------------------------------------------
+# DEPENDENCIES:
+from pyhdf.SD import SD, SDC
+import datetime
+import numpy as np
+# from LIB_AMSR89_NSIDCAU_SI6 import read_AMSR_he5, crop_data
+#---------------------------------------------------------------------
+def create_AMSRnc_landmask(AMSR_mask_file = '/Users/mackenziejewell/Data/AMSR89Tb_NSIDCAU_SI6/amsr_gsfc_6n.hdf',
+                           AMSR_he5_file = '/Users/mackenziejewell/Data/AMSR89Tb_NSIDCAU_SI6/AMSR_U2_L3_SeaIce6km_B04_20210101.he5',
+                           lon_range = [180, 260],
+                           lat_range = [65, 90]):
+    """Create cropped landmask corresponding to locally-created cropped 6.25 km 89 GHz Tb from locally-stored .he5 NSIDC data (NSIDC-AU_SI6, doi: 10.5067/NX1R09ORNOZN)
+INPUT: 
+- AMSR_mask_file: path to locally stored NSIDC AMSR 6.25 km landmask file
+    Downloaded from: https://nsidc.org/data/user-resources/help-center/does-nsidc-have-tools-extract-and-geolocate-polar-stereographic-data
+- AMSR_he5_file = path to locally stored NSIDC AMSR 6.25 km he5 file (doi: 10.5067/NX1R09ORNOZN)
+    for spatial reference of desired lat/long grid to crop to
+    (default: '/Users/mackenziejewell/Data/AMSR89Tb_NSIDCAU_SI6/AMSR_U2_L3_SeaIce6km_B04_20210101.he5')
+- lon_range: [lonmin, lonmax] to crop, values in range (0,360). default: [180, 260]
+- lat_range: [latmin, latmax] to crop. default: [65,90]
+
+OUTPUT:
+- lon_crop: (M x N) cropped longitude grid
+- lat_crop: (M x N) cropped latitude grid
+- land_mask: (M x N) land mask cropped to provided lon/lat range.
+    1 = land or coast. 0 = water.
+
+DEPENDENCIES:
+from pyhdf.SD import SD, SDC
+import datetime
+import numpy as np
+
+# homemade function
+from LIB_AMSR89_NSIDCAU_SI6 import read_AMSR_he5, crop_data
+
+
+Latest recorded update:
+08-08-2023
+    """
+    
+    # open landmask data (1792 x 1216)
+    #---------------------------------
+    f = SD(AMSR_mask_file,SDC.READ)
+    land_ma = f.select('landmask')[:]
+    
+    
+    # Values are 0 (water), 3 (coast), 216 (land)
+    # https://nsidc.org/data/user-resources/help-center/does-nsidc-have-tools-extract-and-geolocate-polar-stereographic-data
+
+    # open original.hef data (1792 x 1216)
+    #-------------------------------------
+    # extract file info to input into read_AMSR_he5 
+    AMSR_filepath = AMSR_he5_file[:AMSR_he5_file.find(AMSR_he5_file.split('/')[-1])]
+    AMSR_datestring = AMSR_he5_file.split('/')[-1].split('.')[0].split('_')[-1]
+    AMSR_date = datetime.datetime.strptime(AMSR_datestring, '%Y%m%d')
+
+    # grab lat lon data from .he5 file
+    [LAT, LON] = read_AMSR_he5(date=AMSR_date, 
+                               filepath=AMSR_filepath, 
+                               filename_convention='AMSR_U2_L3_SeaIce6km_B04_{}{}{}.he5', 
+                               hemisphere='N', add_units=False, 
+                               return_vars=['lat', 'lon'], quiet=False)
+    
+    # crop landmask as data 
+    # match files saved to .nc cropped as (M x N)
+    #-------------------------------------
+    lon_crop, lat_crop, [land_mask_crop] = crop_data(lon=LON, lat=LAT, VARS=[land_ma], 
+                                                     lon_range=lon_range, lat_range=lat_range)
+    
+    # turn to integers
+    land_mask = land_mask_crop.astype(int)
+    
+    # set land (216) and coast (3) to value of 1
+    land_mask[land_mask==216]=1
+    land_mask[land_mask==3]=1
+    
+    return lon_crop, lat_crop, land_mask
+
+
+# # create netCDF data set
+# #-----------------------
+# ds = xr.Dataset(data_vars=dict(
+#     landmask = (["x", "y"], LM, 
+#                {"description":"0: ocean, 1: land/coast"})),
+# coords=dict(
+#     longitude = (["x", "y"], loc, {"units": 'degrees_east'}),
+#     latitude  = (["x", "y"], lac, {"units": 'degrees_north'}),
+# ),
+# attrs=dict(
+#     description = (f"Land mask corresponding to 6.25 km 89 GHz brightness temperatures, cropped ([{lat_range[0]},{lat_range[1]}], [{lon_range[0]},{lon_range[1]}]). (NSIDC-AU_SI6, doi: 10.5067/NX1R09ORNOZN)"), 
+#     ),
+# )
+# ds.to_netcdf(path='/Users/mackenziejewell/Data/AMSR89Tb_NSIDCAU_SI6/AMSR_6km_landmask.nc', mode='w', format="NETCDF4")
 
 
 
