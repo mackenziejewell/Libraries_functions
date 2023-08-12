@@ -40,6 +40,19 @@
 #---------------------------------------------------------------------
 # Add vectors to cartopy plot.
 #---------------------------------------------------------------------
+#////////////////////////
+#  plot_scalar_mesh  ///
+#////////////////////// 
+#---------------------------------------------------------------------
+# function for plotting regular or geographic data with pcolormesh
+#---------------------------------------------------------------------
+#/////////////////////
+#  plot_contours  ///
+#///////////////////
+#---------------------------------------------------------------------
+# Function for plotting regular or geographic data contours
+#---------------------------------------------------------------------
+
 
 
 #////////////////////////////
@@ -508,6 +521,114 @@ Latest recorded update:
     cbar.ax.set_ylabel(cbar_label, fontsize = fontsize);
 
     
+# NEW VERSION BELOW
+# #//////////////////
+# #  add_vectors ///
+# #////////////////
+# #---------------------------------------------------------------------
+# # Add vectors to figure (automatically fix cartopy vector angle issue).
+# #---------------------------------------------------------------------
+# # DEPENDENCIES
+# import numpy as np
+# import matplotlib as mpl
+# from matplotlib import pyplot as plt
+# import matplotlib.colors
+# import cartopy
+# import cartopy.crs as ccrs
+# #---------------------------------------------------------------------
+# def add_vectors(fig, ax, Lons, Lats, u, v, regrid = [1,1], 
+#               color = (0, 0, 0), scale=150, width = 0.005, 
+#               headwidth = 3, headaxislength = 4, headlength = 4, minshaft = 1, minlength = 1, 
+#               linewidth = 0, alpha=1, angles = 'uv', pivot = 'mid',
+#               zorder_winds = 7, zorder_key = 6, quiv_key = (10, [1.1, 0.035],[1.02, 0.052], '            10 m/s', 15, 'k')): 
+    
+#     """Add vectors to figure (automatically fix cartopy vector angle issue).
+    
+# INPUT:
+# - fig: cartopy figure
+# - ax: cartopy figure axis
+# - Lons: M x N lon grid for vectors
+# - Lats: M x N lat grid for vectors
+
+# THESE WILL BE RESCALED USING function: fix_cartopy_vectors
+# - u: M x N grid for horizontal components of vectors
+# - v: M x N grid for vertical components of vectors
+
+# - regrid: regridding density, either specified as
+#          --> list of length 1 specifying density to use cartopy regridding (e.g. [12])
+#          --> list of length 2 specifying spacing along each grid direction (e.g. [5,10])
+#          --> default: [1,1] (no regridding)
+#                  if plotting a zonal transect of vectors (only one latitude, set wDlat = None) 
+# - color: color of arrow vectors (default: (0.9, 0.4, 0))
+# - alpha: opacity of vectors (default: 1)
+# - scale: Number of data units per arrow length unit (default: 150) 
+# - width: Shaft width in arrow units (default: 0.005)
+# - headwidth: Head width as multiple of shaft width (default: 3)
+# - headaxislength: Head length at shaft intersection (default: 4)
+# - headlengt: Head length as multiple of shaft width (default:  4) 
+# - minshaft: Length below which arrow scales, in units of head length (default: 1)
+# - minlength: Minimum length as multiple of shaft width; if less than this, plot a dot of this diameter (default: 1)
+# - linewidth: linewidth of arrow outline (default: 0)
+# - angles: Method for determining the angle of the arrows (default: 'uv')
+# - pivot: The part of the arrow that is anchored to the X, Y grid (default:  'mid')
+# - zorder_winds: drawing order of winds layer (default: 7)
+# - zorder_key: drawing order of wind key layer (default: 6)
+# - quiv_key: key arrow size, text, fontsize, fontcolor, and position of key arrow and text box as 
+#             (arrowsize, [Xarrow, Yarrow],[Xtext, Ytext], text, fontsize, fontcolor)
+#             or set = None if no key is desired 
+#             (default: (10, [1.1, 0.035],[1.02, 0.052], '            10 m/s', 15, 'k'))
+
+# OUTPUT:
+# - input plot with added date label
+
+# DEPENDENCIES:
+# import numpy as np
+# import matplotlib as mpl
+# from matplotlib import pyplot as plt
+# import matplotlib.colors
+# import cartopy
+# import cartopy.crs as ccrs
+
+# Latest recorded update:
+# 07-14-2022
+#     """
+    
+#     # plot vectors
+#     #-------------
+#     # set vector density spacing with regrid
+#     # set arrow color as specified
+    
+#     # else plot with 2D grid spacing
+#     #-------------------------------
+#     if len(regrid) == 2: 
+#         winds = ax.quiver(Lons[::regrid[0],::regrid[1]], Lats[::regrid[0],::regrid[1]], 
+#                           *fix_cartopy_vectors(u[::regrid[0],::regrid[1]], v[::regrid[0],::regrid[1]], Lats[::regrid[0],::regrid[1]]), 
+#                           transform=ccrs.PlateCarree(), 
+#                           color = color, angles = angles, 
+#                           scale=scale, width = width, headwidth = headwidth, 
+#                           headaxislength = headaxislength, headlength = headlength,
+#                           linewidth = linewidth, alpha=alpha,
+#                           minshaft = minshaft, minlength = minlength, pivot = pivot, zorder = zorder_winds)
+
+#     else:
+#         winds = ax.quiver(Lons, Lats, *fix_cartopy_vectors(u, v, Lats), 
+#                           transform=ccrs.PlateCarree(), regrid_shape=regrid[0],
+#                           color = color, angles = angles, 
+#                           scale=scale, width = width, headwidth = headwidth, 
+#                           headaxislength = headaxislength, headlength = headlength, 
+#                           linewidth = linewidth, alpha=alpha,
+#                           minshaft = minshaft, minlength = minlength, pivot = pivot, zorder = zorder_winds)
+    
+    
+#     # add vector key
+#     #---------------
+#     if quiv_key != None:
+#         ax.quiverkey(winds, X=quiv_key[1][0], Y=quiv_key[1][1], U=quiv_key[0], label = '', labelpos='E')
+#         ax.text(quiv_key[2][0], quiv_key[2][1], quiv_key[3], transform=ax.transAxes, fontsize=quiv_key[4], color=quiv_key[5],
+#             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=1), zorder = zorder_key)
+        
+        
+        
 #//////////////////
 #  add_vectors ///
 #////////////////
@@ -521,12 +642,13 @@ from matplotlib import pyplot as plt
 import matplotlib.colors
 import cartopy
 import cartopy.crs as ccrs
+from LIB_geo_plot import fix_cartopy_vectors
 #---------------------------------------------------------------------
 def add_vectors(fig, ax, Lons, Lats, u, v, regrid = [1,1], 
               color = (0, 0, 0), scale=150, width = 0.005, 
               headwidth = 3, headaxislength = 4, headlength = 4, minshaft = 1, minlength = 1, 
               linewidth = 0, alpha=1, angles = 'uv', pivot = 'mid',
-              zorder_winds = 7, zorder_key = 6, quiv_key = (10, [1.1, 0.035],[1.02, 0.052], '            10 m/s', 15, 'k')): 
+              zorder = 7, zorder_key = 6, quiv_key = (10, [1.1, 0.035],[1.02, 0.052], '            10 m/s', 15, 'None', 'None')): 
     
     """Add vectors to figure (automatically fix cartopy vector angle issue).
     
@@ -557,12 +679,12 @@ THESE WILL BE RESCALED USING function: fix_cartopy_vectors
 - linewidth: linewidth of arrow outline (default: 0)
 - angles: Method for determining the angle of the arrows (default: 'uv')
 - pivot: The part of the arrow that is anchored to the X, Y grid (default:  'mid')
-- zorder_winds: drawing order of winds layer (default: 7)
+- zorder: drawing order of vector layer (default: 7)
 - zorder_key: drawing order of wind key layer (default: 6)
-- quiv_key: key arrow size, text, fontsize, fontcolor, and position of key arrow and text box as 
-            (arrowsize, [Xarrow, Yarrow],[Xtext, Ytext], text, fontsize, fontcolor)
+- quiv_key: key arrow size, position of key arrow and text box, text, fontsize, textbox edgecolor, textbox facecolor, as 
+            (arrowsize, [Xarrow, Yarrow],[Xtext, Ytext], text, fontsize, box_edgecolor, box_facecolor)
             or set = None if no key is desired 
-            (default: (10, [1.1, 0.035],[1.02, 0.052], '            10 m/s', 15, 'k'))
+            (default: (10, [1.1, 0.035],[1.02, 0.052], '            10 m/s', 15, 'None', 'None'))
 
 OUTPUT:
 - input plot with added date label
@@ -576,7 +698,7 @@ import cartopy
 import cartopy.crs as ccrs
 
 Latest recorded update:
-07-14-2022
+09-21-2022
     """
     
     # plot vectors
@@ -594,7 +716,7 @@ Latest recorded update:
                           scale=scale, width = width, headwidth = headwidth, 
                           headaxislength = headaxislength, headlength = headlength,
                           linewidth = linewidth, alpha=alpha,
-                          minshaft = minshaft, minlength = minlength, pivot = pivot, zorder = zorder_winds)
+                          minshaft = minshaft, minlength = minlength, pivot = pivot, zorder = zorder)
 
     else:
         winds = ax.quiver(Lons, Lats, *fix_cartopy_vectors(u, v, Lats), 
@@ -603,12 +725,216 @@ Latest recorded update:
                           scale=scale, width = width, headwidth = headwidth, 
                           headaxislength = headaxislength, headlength = headlength, 
                           linewidth = linewidth, alpha=alpha,
-                          minshaft = minshaft, minlength = minlength, pivot = pivot, zorder = zorder_winds)
+                          minshaft = minshaft, minlength = minlength, pivot = pivot, zorder = zorder)
     
     
     # add vector key
     #---------------
     if quiv_key != None:
-        ax.quiverkey(winds, X=quiv_key[1][0], Y=quiv_key[1][1], U=quiv_key[0], label = '', labelpos='E')
-        ax.text(quiv_key[2][0], quiv_key[2][1], quiv_key[3], transform=ax.transAxes, fontsize=quiv_key[4], color=quiv_key[5],
-            verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=1), zorder = zorder_key)
+        key = ax.quiverkey(winds, X=quiv_key[1][0], Y=quiv_key[1][1], U=quiv_key[0], label = '', labelpos='E')
+        key.set(zorder = zorder_key)
+        ax.text(quiv_key[2][0], quiv_key[2][1], quiv_key[3], transform=ax.transAxes, fontsize=quiv_key[4],
+            verticalalignment='top', bbox=dict(boxstyle='round', facecolor=quiv_key[6], edgecolor=quiv_key[5], alpha=1), zorder = zorder_key+1)
+
+
+#////////////////////////
+#  plot_scalar_mesh  ///
+#////////////////////// 
+#---------------------------------------------------------------------
+# function for plotting regular or geographic data with pcolormesh
+#---------------------------------------------------------------------
+# DEPENDENCIES:
+import matplotlib.colors
+import numpy as np, numpy.ma as ma
+import cartopy, cartopy.crs as ccrs
+import matplotlib.cm as cm
+#---------------------------------------------------------------------
+
+def plot_scalar_mesh(fig, ax, x_grid, y_grid, scalar_grid, geo_grid = True,
+                     cmap = 'RdBu', cmap_norm = 'auto', cmap_type = 'continuous',
+                     shading='nearest', zorder = 0):
+    """Function for plotting regular or geographic data with pcolormesh. Many commands are automated in this function to save space in routine where it is used.
+
+INPUT: 
+- fig: figure to which scalar mesh will be added
+- ax: figure axis to which scalar mesh will be added
+- geo_grid: bool, whether or not grid is showing geographic data
+    True: then x_grid is longitudes and y_grid is latitudes,
+    data will be transformed using ccrs.PlateCarree() (default)
+    False: data will not be transformed 
+- x_grid: MxN grid of longitudes
+- y_grid: MxN grid of latitudes
+- scalar_grid: MxN grid of scalar data values
+- cmap: colormap to use (default: 'RdBu')
+- cmap_norm: normalization for data in colormap (default: 'auto')
+    'auto' where normalization generated from scalar_grid data
+    Mx1 lists of floats (M=2,3,4 when cmap_type == 'continuous'), 
+    either as:[vmin, vmax], [vmin, midpoint, vmax], or [vmin, midpoint1, midpoint2, vmax]
+    (M=any length when cmap_type == 'discrete')
+- cmap_type: either 'discrete' or 'continuous' (default: 'continuous')
+    'discrete' plots mesh as discretized data along boundaries given by cmap_norm
+    'continuous' plots mesh as continuous colormap 
+- shading: pcolormesh shading method (default: 'nearest')
+- zorder: zorder of mesh layer
+
+
+OUTPUT:
+- fig, ax: figure and figure axis to which scalar mesh was added
+- scalar_mesh: pcolormesh plot output
+
+DEPENDENCIES:
+import matplotlib.colors
+import numpy as np, numpy.ma as ma
+import cartopy, cartopy.crs as ccrs
+import matplotlib.cm as cm
+* also uses homemade TwopointNormalize class
+
+Latest recorded update:
+04-20-2022
+    """
+
+    # COLORMAP NORMALIZATION
+    #=======================
+    if str(cmap_type) == 'discrete':
+        divnorm = matplotlib.colors.BoundaryNorm(cmap_norm, cmap.N)
+    else:
+        # automatically scale colormap 
+        # based off of scalar_grid data
+        if str(cmap_norm) == 'auto':
+            divnorm = matplotlib.colors.TwoSlopeNorm(vmin=np.nanmin(scalar_grid), 
+                                                     vcenter=(np.nanmax(scalar_grid)-np.nanmin(scalar_grid))/2+np.nanmin(scalar_grid), 
+                                                     vmax=np.nanmax(scalar_grid))
+        # create colormap normalization 
+        # based on given input camp_norm values
+        elif len(cmap_norm) == 2:
+            divnorm = matplotlib.colors.TwoSlopeNorm(vmin=cmap_norm[0], 
+                                                     vcenter=(cmap_norm[1]+cmap_norm[0])/2, 
+                                                     vmax=cmap_norm[1])
+        elif len(cmap_norm) == 3:
+            divnorm = matplotlib.colors.TwoSlopeNorm(vmin=cmap_norm[0], 
+                                                     vcenter=cmap_norm[1], 
+                                                     vmax=cmap_norm[2])
+        elif len(cmap_norm) == 4:
+            divnorm = TwopointNormalize(vmin=cmap_norm[0], 
+                                        vmid1=cmap_norm[1], 
+                                        vmid2=cmap_norm[2], 
+                                        vmax=cmap_norm[3])
+        else:
+            divnorm = cmap_norm
+
+    # PLOT SCALAR MESH
+    #=================
+    # transform coordinates if geographic data
+    if geo_grid == True:
+        scalar_mesh=ax.pcolormesh(x_grid, y_grid, scalar_grid, 
+                   cmap=cmap, norm=divnorm, transform=ccrs.PlateCarree(), shading=shading,zorder=zorder)
+    else:
+        scalar_mesh=ax.pcolormesh(x_grid, y_grid, scalar_grid, 
+                   cmap=cmap, norm=divnorm, shading=shading, zorder=zorder)
+    
+    return fig, ax, scalar_mesh
+
+
+#/////////////////////
+#  plot_contours  ///
+#///////////////////
+#---------------------------------------------------------------------
+# Function for plotting regular or geographic data contours
+#---------------------------------------------------------------------
+# DEPENDENCIES:
+import matplotlib.colors
+import numpy as np, numpy.ma as ma
+import cartopy, cartopy.crs as ccrs
+import matplotlib.cm as cm
+#---------------------------------------------------------------------
+
+def plot_contours(fig, ax, x_grid, y_grid, scalar_grid, geo_proj = 'None',
+                  levels = 'auto', lw = 1, color = 'black',  
+                  label_contours = False, manual_labels = False,
+                  x_labels = np.array([180, 180, 180, 180, 180]), 
+                  y_labels = np.array([65, 70, 75, 80, 85]), 
+                  hidecont_belowlabel= True,
+                  pixelspace_aroundlabel=30, labelsize=10, zorder = 1):
+                      
+    """Function for plotting regular or geographic data contours. Many commands are automated in this function to save space in routine where it is used.
+
+INPUT: 
+- fig: figure to which scalar mesh will be added
+- ax: figure axis to which scalar mesh will be added
+- x_grid: MxN grid of longitudes
+- y_grid: MxN grid of latitudes
+- scalar_grid: MxN grid of scalar data values
+- geo_proj: either 'None' (default) or set to cartopy map projection (e.g. ccrs.NorthPolarStereo(central_longitude=203.5)) in which case x_grid is longitudes and y_grid is latitudes, and data will be transformed using ccrs.PlateCarree() 
+- levels: contour levels to plot or 'auto' (default: 'auto', automatically generate from grid)
+- lw: contour linewidth (default: 1)
+- color: contour color (default: 'black')
+- label_contours: bool, whether or not to label contours (default: False)
+- manual_labels: bool, whether or not to add manual labels to contours (default: False)
+- hidecont_belowlabel: bool, whether or not to remove contour below labels (default: True)
+- pixelspace_aroundlabel: pixel spacing around label (default: 30) 
+- labelsize: label size (default: 10)
+- zorder: zorder of mesh layer
+if label_contours == True and manual_labels == True
+- x_labels: array of x or longitude positions to add to contour labels (default along dateline)
+- y_labels: array of y or latitude positions to add to contour labels (default values 65-80)
+
+OUTPUT:
+- fig, ax: figure and figure axis to which contour plot was added
+
+DEPENDENCIES:
+import matplotlib.colors
+import numpy as np, numpy.ma as ma
+import cartopy, cartopy.crs as ccrs
+import matplotlib.cm as cm
+
+Latest recorded update:
+04-20-2022
+    """
+    
+    # make plot
+    #=======================    
+    # if not specified, plot data without projection
+    if str(geo_proj) == 'None':
+        if str(levels) != 'auto':
+            CS =  ax.contour(x_grid, y_grid, scalar_grid, levels = levels, 
+                         colors=color,linewidths=cont_lw, zorder=zorder)
+        else:
+            CS =  ax.contour(x_grid, y_grid, scalar_grid,
+                         colors=color,linewidths=cont_lw, zorder=zorder)
+    # if specified, project data onto map    
+    else:
+        if str(levels) != 'auto':
+            CS =  ax.contour(x_grid, y_grid, scalar_grid, levels = levels, 
+                             colors=color,linewidths=lw, transform = ccrs.PlateCarree(), zorder=zorder)
+        else:
+            CS =  ax.contour(x_grid, y_grid, scalar_grid,
+                             colors=color,linewidths=lw, transform = ccrs.PlateCarree(), zorder=zorder)
+            
+    # add labels to contours
+    #=======================
+    if label_contours == True:
+        # check whether to add manual labels
+        if manual_labels == True:
+            # if not specified, create manual points without transforming
+            if geo_proj == False:
+                manual_points = []
+                for ii in range(len(x_labels)):
+                    manual_points.append((x_labels[ii],y_labels[ii]))
+            # if specified, transform provided manual points
+            else:
+                Coords = geo_proj.transform_points(ccrs.PlateCarree(), x_labels, y_labels)
+                manual_points=[]
+                for spot in Coords[:,0:2]:
+                    manual_points.append((spot[0],spot[1]))
+
+            # label contours with manual labels 
+            ax.clabel(CS, CS.levels, inline=hidecont_belowlabel, 
+                      inline_spacing=pixelspace_aroundlabel, 
+                      fontsize=labelsize, manual=manual_points)
+        else:
+            # label contours without manual labels 
+            ax.clabel(CS, CS.levels, inline=hidecont_belowlabel, 
+                      inline_spacing=pixelspace_aroundlabel, 
+                      fontsize=labelsize)
+                  
+    return fig, ax
