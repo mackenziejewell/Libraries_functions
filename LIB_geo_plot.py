@@ -52,7 +52,12 @@
 #---------------------------------------------------------------------
 # Function for plotting regular or geographic data contours
 #---------------------------------------------------------------------
-
+#//////////////////
+#  add_LFice   ///
+#////////////////
+#---------------------------------------------------------------------
+# Plot 'landfast ice' perimeter around Alaskan coast from bathymetry data
+#---------------------------------------------------------------------
 
 
 #////////////////////////////
@@ -938,3 +943,69 @@ Latest recorded update:
                       fontsize=labelsize)
                   
     return fig, ax
+
+
+
+
+#//////////////////
+#  add_LFice   ///
+#////////////////
+#---------------------------------------------------------------------
+# Plot 'landfast ice' perimeter around Alaskan coast from bathymetry data
+#---------------------------------------------------------------------
+# DEPENDENCIES:
+import xarray as xr
+import numpy as np, numpy.ma as ma
+from matplotlib import pyplot as plt
+import cartopy, cartopy.crs as ccrs
+#---------------------------------------------------------------------
+
+
+def add_LFice(ax, lat_range = [67, 71.5], lon_range = [190, 233], spacing = 5, depth_cutoff = -20,
+              zorder = 8, color = [0.4,0.4,0.4], size = 0.01, marker = '.', bath_data = '/Volumes/Jewell_EasyStore/AcrticBathymetry_IBCAO_2022/gebco_2022_n90.0_s60.0_w0.0_e360.0.nc'):
+
+    """
+    Add 'landfast ice' cover perimeter around Alaskan coast to plot, using bathymetry data \n
+    20 m depth and shallower based on Mahoney et a. (2007), doi: 10.1029/2006JC003559
+    
+    
+    INPUT:
+    - ax: figure axis
+    - bath_data: Beaufort Sea bathymetry data (default: '/Volumes/Jewell_EasyStore/AcrticBathymetry_IBCAO_2022/gebco_2022_n90.0_s60.0_w0.0_e360.0.nc')
+    - lat_range: range of lats to crop as [min, max] (default:[67, 71.5])
+    - lon_range: range of lons to crop as [min, max] (default:[190, 233])
+    - spacing: step size in either direction used to grab data, value of 1 selects all data points (default: 5)
+    - depth_cutoff: deepest bathymetry (m) to include as part of LF ice (default: -20)
+    - color: color of LF ice region (default: [0.4,0.4,0.4])
+    - point_size: size of scatter points to plot (default: 0.01)
+    - zorder: plot layer (default: 8)
+    - marker: marker type of scatter plot (default: '.')
+    
+    DEPENDENCIES:
+    import xarray as xr
+    import numpy as np, numpy.ma as ma
+    from matplotlib import pyplot as plt
+    import cartopy, cartopy.crs as ccrss
+
+    Latest recorded update:
+    12-14-2022
+    """
+    
+    # import elevation data
+    ds = xr.open_dataset(bath_data)
+    ds.close()
+    ds_crop = ds.sel(lat=slice(lat_range[0],lat_range[1]),lon=slice(lon_range[0],lon_range[1]))
+    
+    # grab geo coordinates and elevation data
+    lat_elev = ds_crop.lat
+    lon_elev = ds_crop.lon
+    elev = ds_crop.elevation
+    
+    # apply reduction in point density if specified
+    lon, lat = np.meshgrid(lon_elev[::spacing], lat_elev[::spacing])
+    elev = elev[::spacing, ::spacing]
+    lon_shallower = lon[elev>=depth_cutoff]
+    lat_shallower = lat[elev>=depth_cutoff]
+    
+    ax.scatter(lon_shallower,lat_shallower, s=size, color=color, marker=marker, transform = ccrs.PlateCarree(), zorder=zorder)
+   
