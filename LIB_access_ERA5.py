@@ -241,6 +241,7 @@ Latest recorded update:
     
     # import data with xarray
     ds_unshifted = xr.open_dataset(ERA5_path)
+    ds_unshifted.close() 
     
     # shift data to [0,360] longitude range (and ascending latitude range) if not already
     ERA5_ds = shift_bylons(ds_unshifted, longitude_name = 'longitude', suppress_prints=True)
