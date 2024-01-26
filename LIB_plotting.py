@@ -126,8 +126,8 @@ INPUT:
 
 
 OUTPUT:
-- fig: figure to which colorbar was added
-- ax: figure axis to which colorbar was added
+- cbar: colorbar instance
+- cbar_ax: colorbar axis instance
 
 DEPENDENCIES:
 import matplotlib.colors
@@ -136,7 +136,7 @@ import cartopy, cartopy.crs as ccrs
 import matplotlib.cm as cm
 
 Latest recorded update:
-06-23-2023
+10-23-2023
     """
     
     
@@ -257,4 +257,4 @@ Latest recorded update:
         else:
             cbar_ax.yaxis.set_ticks_position(cb_tick_placement) # 'left' or 'right'
 
-    return fig, ax
+    return cbar, cbar_ax
