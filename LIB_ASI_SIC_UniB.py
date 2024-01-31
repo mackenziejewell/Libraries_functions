@@ -9,14 +9,14 @@ import cartopy.crs as ccrs
 from metpy.units import units
 from pyhdf.SD  import *
 
-def grab_projinfo_SIC(ds, suppress_prints = True):
+def grab_projinfo_SIC(ds, quiet = True):
 
     """Grab projection info from Uni B AMSR2-AMSRE sea ice concentration data (doi: 10.1029/2005JC003384)
     https://seaice.uni-bremen.de/sea-ice-concentration/amsre-amsr2/
 
 INPUT: 
 - ds: data opened with xarray
-- suppress_prints: bool, whether or not to supress print statements (default: True)
+- quiet: bool, whether or not to supress print statements (default: True)
 
 OUTPUT:
 - projection: cartopy projection from data projection info
@@ -29,7 +29,7 @@ import cartopy.crs as ccrs
 import xarray as xr
 
 Latest recorded update:
-01-25-2024
+01-26-2024
     """
     
     
@@ -43,7 +43,7 @@ Latest recorded update:
     inv_flat = CRS['inverse_flattening']
     standard_parallel = int(CRS['standard_parallel'])
     
-    if suppress_prints != True:
+    if quiet != True:
         print(f'>>> data provided in polar_stereographic projection')
         print(f'  - semi_major_axis: {semimajor}')
         print(f'  - inverse_flattening: {inv_flat}')
@@ -67,7 +67,7 @@ def grab_ASI_SIC(date = datetime(year = 2015, month = 3, day = 24),
                  version = 'v5.4',
                  return_vars = ['xx', 'yy', 'lon', 'lat', 'sic', 'proj', 'ds'], 
                  include_units = False,
-                 suppress_prints = True):
+                 quiet = True):
     
     """Grab projection info from Uni B AMSR2-AMSRE sea ice concentration data (doi: 10.1029/2005JC003384)
     https://seaice.uni-bremen.de/sea-ice-concentration/amsre-amsr2/
@@ -100,7 +100,7 @@ info used to determine file name and subfolder where data is stored:
     Can include any or all OUTPUT variables in any order: 
     default: ['xx', 'yy', 'lon', 'lat', 'sic', 'proj', 'ds']
 - include_units: bool, whether or not to include units for relevant variables
-- suppress_prints: bool, whether or not to supress print statements (default: True)
+- quiet: bool, whether or not to supress print statements (default: True)
 
 OUTPUT:
 List of any or all of variables specified in return_vars:
@@ -127,7 +127,7 @@ from pyhdf.SD  import *
 grab_projinfo_SIC
 
 Latest recorded update:
-01-25-2024
+01-31-2024
     """
 
     # import numpy as np
@@ -140,12 +140,12 @@ Latest recorded update:
     assert str(type(date)) == "<class 'datetime.datetime'>", f'date must be datetime object, not {type(date)}'
     assert type(return_vars) == list, f'return_vars must be list, not {type(return_vars)}'
     assert type(main_path) == str, f'main_path must be string, not {type(main_path)}'
-    assert type(suppress_prints) == bool, f'suppress_prints must be bool, not {type(suppress_prints)}'
+    assert type(quiet) == bool, f'suppress_prints must be bool, not {type(suppress_prints)}'
     
     assert len(return_vars) > 0, 'return_vars list is empty. Must have length >=1'
     assert os.path.isdir(main_path), f'"{main_path}" not an existing directory'
     
-    if not suppress_prints:
+    if not quiet:
         print('Provided input\n--------------')
         print(f'hemisphere: {hemisphere}')
         print(f'resolution: {resolution}')
@@ -161,7 +161,7 @@ Latest recorded update:
 
     # determine whether date is in data gap
     if (gap_i_date < date) & (date < gap_f_date):
-        if not suppress_prints:
+        if not quiet:
             print(f"!!!\nWARNING >>> {date.date()} is within Oct 2011 - July 2012 data gap \n!!!\n")
     
     # create subfolder and file name
@@ -180,16 +180,19 @@ Latest recorded update:
     # e.g. 'asi-AMSR2-n6250-2012'
     sub_folder = 'asi-{}-{}{}-{}/'.format(platform, hemisphere, resolution, year)
     assert os.path.isdir(main_path + sub_folder), f'"{main_path + sub_folder}" not an existing directory'
-    if not suppress_prints:
+    if not quiet:
         print(f'main folder: {main_path}')
         print(f'sub folder: {sub_folder}')
     
     # generate file name 
-    # e.g. 'asi-AMSR2-n6250-20120704-v5.4.nc'
-    file_name = 'asi-{}-{}{}-{}-{}.nc'.format(platform, hemisphere, resolution, datestring, version)
+    # e.g. 'asi-AMSR2-n6250-20120704-v5.4.nc' or 'asi-n6250-20120704-v5.4.nc' for AMSRE files
+    if str(platform) == 'AMSRE':
+        file_name = 'asi-{}{}-{}-{}.nc'.format(hemisphere, resolution, datestring, version)
+    else:
+        file_name = 'asi-{}-{}{}-{}-{}.nc'.format(platform, hemisphere, resolution, datestring, version)
     data_path = main_path + sub_folder + file_name
     assert os.path.isfile(data_path), f'"{file_name}" not an existing file in {sub_folder}'
-    if not suppress_prints:
+    if not quiet:
         print(f'file name: {file_name}')
 
     # actually open data set
@@ -221,7 +224,7 @@ Latest recorded update:
 
         # grab lat / lon coordinates from coord_file
         assert os.path.isfile(main_path+coord_file), f'"{coord_file}" not an existing file in {main_path}'
-        if not suppress_prints:
+        if not quiet:
             print(f'coordinate file: {coord_file}')
         
         # open file
