@@ -1,3 +1,9 @@
+#/////////////////////////////
+#  add_points_to_segment  ///
+#///////////////////////////
+#---------------------------------------------------------------------
+# add (n-1) points between two coordinates
+#---------------------------------------------------------------------
 #////////////////////
 #  make_polygon  ///
 #//////////////////
@@ -67,7 +73,60 @@
 #---------------------------------------------------------------------
 
 
+#/////////////////////////////
+#  add_points_to_segment  ///
+#///////////////////////////
+#---------------------------------------------------------------------
+# add (n-1) points between two coordinates
+#---------------------------------------------------------------------
+# DEPENDENCIES:
+import numpy as np
+import numpy.ma as ma
+import shapely
+from shapely.geometry import LineString
+#---------------------------------------------------------------------
 
+def add_points_to_segment(lon_i = 200, lat_i = 70, lon_f = 220, lat_f = 70, n = 10):
+    
+    """Add (n-1) points between two coordinates.
+    
+INPUT:
+- lon_i: longitude of initial coordinate
+- lat_i: latitude of initial coordinate
+- lon_f: longitude of final coordinate
+- lat_i: latitude of final coordinate
+- n: number of points created segment should have, including given coordinates as endpoints.
+
+OUTPUT:
+- lons_seg: numpy array of n longitudes along created segment
+- lats_seg: numpy array of n latitudes along created segment
+
+DEPENDENCIES:
+import numpy as np
+import numpy.ma as ma
+import shapely
+from shapely.geometry import LineString
+
+Latest recorded update:
+02-06-2024
+    """
+    
+    # create linestring object from i,f coordinates
+    line = LineString(np.stack(([lon_i, lon_f], [lat_i, lat_f]), axis=1))
+    
+    # interpolate points along line to create new line with n points
+    distances = np.linspace(0, line.length, n)
+    points = [line.interpolate(distance) for distance in distances]
+    new_line = LineString(points)
+    
+    # extracts new coords along line segment
+    lons_seg = np.array([])
+    lats_seg = np.array([])
+    for coord in new_line.coords:
+        lons_seg = np.append(lons_seg, coord[0])
+        lats_seg = np.append(lats_seg, coord[1])
+    
+    return lons_seg, lats_seg
 
 
 #////////////////////
