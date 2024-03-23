@@ -82,9 +82,11 @@ import matplotlib.cm as cm
 def add_colorbar(fig, ax, colorbar_input, cb_placement = 'left', cb_orientation = 'auto', 
                  cb_width = 'auto',  cb_length_fraction = [0,1], cb_pad = 0, 
                  cb_ticks = 'auto', cb_ticklabels = 'auto', 
-                 cb_extend='neither', cb_label=' ', labelpad = 'auto', cb_label_placement = 'auto', cb_tick_placement = 'auto',
+                 cb_extend='neither', cb_label=' ', labelpad = 'auto', 
+                 cb_label_placement = 'auto', cb_tick_placement = 'auto',
+                 tick_kwargs = None,
                  cb_labelsize = 12, draw_edges=False, edge_params=['k',2]):
-    
+
     """Function for plotting colorbar along edge of figure axis.
 
 INPUT: 
@@ -120,6 +122,8 @@ INPUT:
            --> 'both': arrow at both ends of colorbar
 - cb_label: colorbar label (string), default is empty string
 - labelpad: pad between colorbar and label, either 'auto' to use default setting or specify float
+- tick_kwargs: kwargs for tick parameters (default None)
+    e.g. tick_kwargs = {'pad':0.1, 'length':0, 'labelsize':40, 'length':0.1, 'width':4}
 - cb_labelsize: colorbar label and tick fontsize
 - draw_edges: bool, whether or not to draw outline around colorbar (default: False)
 - edge_params: color and linewidth for cbar edges if drawn, as [edgecolor, edgelinewidth] (default: ['k',2])
@@ -136,7 +140,7 @@ import cartopy, cartopy.crs as ccrs
 import matplotlib.cm as cm
 
 Latest recorded update:
-10-23-2023
+03-21-2024
     """
     
     
@@ -208,10 +212,19 @@ Latest recorded update:
                             orientation=cb_orientation, extend=cb_extend, ticks=cb_ticks, drawedges=draw_edges)
         # place tick labels if specified
         if str(cb_ticklabels)!='auto':
-            if str(cb_placement) == 'top' or str(cb_placement) == 'bottom':
+            if str(cb_orientation) == 'horizontal':
                 cbar.ax.set_xticklabels(cb_ticklabels) 
             else:
                 cbar.ax.set_yticklabels(cb_ticklabels) 
+    
+    
+    # tick parameters from tick_kwargs
+    if tick_kwargs != None:
+        if str(cb_orientation) == 'horizontal':
+            cbar.ax.xaxis.set_tick_params(**tick_kwargs)
+        else:
+            cbar.ax.yaxis.set_tick_params(**tick_kwargs)
+            
 
     # if including edge border around cbar, specify its linewidth and color            
     if draw_edges==True:
@@ -225,9 +238,9 @@ Latest recorded update:
     # set label and colorbar fontsize
     cbar.ax.tick_params(labelsize=cb_labelsize)
     if str(labelpad) == 'auto':
-        cbar.set_label(cb_label, fontsize=cb_labelsize)
+        cbar.set_label(cb_label, fontsize=cb_labelsize, rotation=0)
     else:
-        cbar.set_label(cb_label, fontsize=cb_labelsize, labelpad=labelpad)
+        cbar.set_label(cb_label, fontsize=cb_labelsize, rotation=0, labelpad=labelpad)
     
     # choose side of colorbar to place label
     if str(cb_label_placement) == 'auto':
@@ -236,6 +249,7 @@ Latest recorded update:
             cbar_ax.xaxis.set_label_position(cb_placement)
         else:
             cbar_ax.yaxis.set_label_position(cb_placement)
+    
     # place label on specified side of colorbar
     else:
         if str(cb_orientation) == 'horizontal':

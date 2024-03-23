@@ -693,7 +693,7 @@ def distance_weighted_mean(point_lon = [], point_lat = [], grid_lons = [], grid_
                        grid_data = [], mask = [],  ellps = 'WGS84',
                        lat_buffer = 1, lon_buffer = 5,
                        return_vars = ['neighbor_lons', 'neighbor_lats', 'neighbor_data', 'neighbor_weights', 'weighted_mean'],
-                       max_dist = 50*units('km')):
+                       max_dist = 50*units('km'), quiet = False):
     
     """Find inverse distance - weighted mean value of data at provided lat/lon coordinate from gridded data. Option to simply find and return data from nearest gridded point.
     
@@ -717,6 +717,7 @@ INPUT:
 - max_dist: Pint quantity (with Metpy units), maximum allowed distance between provided and nearest gridded point
     (default: 50*units('km') for 50 km). If nearest gridded point is further than this, return empty values 
     for nearest points.
+- quiet: bool, whether or not to suppress prints (default: False)
 
 
 OUTPUT:
@@ -750,7 +751,7 @@ import numpy as np
 from metpy.units import units
 
 Latest recorded update:
-07-07-2023
+03-21-2024
     """
     
     
@@ -813,7 +814,8 @@ Latest recorded update:
 
     # if no value found within max_dist of provided point, notify and flag nearest_dist
     if nearest_dist == max_dist:
-        print(f'Could not find grid coordinate within {max_dist} of {point_lat, point_lon}')
+        if not quiet:
+            print(f'Could not find grid coordinate within {max_dist} of {point_lat, point_lon}')
         nearest_dist = ( 999.0 * units('km') ).to(max_dist.units)
         
     # store all output in dictionary
@@ -902,8 +904,10 @@ INPUT:
                         Points are evenly-spaced, but spacing size and local azimuths cannot 
                         be specified. (uses pyproj g.npts)
 - c1: tuple of (lon, lat) of starting point.
-- c2: tuple of (lon, lat) of terminus point.
+- c2: tuple of (lon, lat) of terminus point. (only used for 'geodesic_npts')
 - N: int, total number of points in path. Must be 2 or greater.
+- distance: distance between steps (only used for 'constant_azimuth')
+            must include metpy units
 - azimuth: angle in degrees or radians from Northward (+ CW)
            must include metpy units as degrees or radians (default 0 * units('degree'))
 - g: geod to use for pyproj geodesic calculations (default: Geod(ellps='WGS84'))
@@ -918,7 +922,7 @@ from metpy.units import units
 from pyproj import Geod
 
 Latest recorded update:
-07-06-2023
+03-21-2024
     """
     
     if str(type(distance)) !=  "<class 'pint.quantity.build_quantity_class.<locals>.Quantity'>":

@@ -12,7 +12,8 @@ from LIB_geo_func import (distance_weighted_mean)
 
 def gate_drift_comp(gate = [], azimuths = [], u_grid = [], v_grid = [], lat_grid = [], lon_grid = [],
                     max_dist = 50*units('km'), 
-                    return_vars = ['gate_u', 'gate_v', 'perp_vecs', 'para_vecs', 'gate_perp', 'gate_para']):
+                    return_vars = ['gate_u', 'gate_v', 'perp_vecs', 'para_vecs', 'gate_perp', 'gate_para'],
+                   quiet = False):
     
     """Find ice drift components relative to flux gates.
     
@@ -28,15 +29,16 @@ INPUT:
     (default: 50*units('km') for 50 km). If nearest gridded point is further than this, return empty values 
     for nearest points.
 - return_vars: list of variable names to return
-  
+ - quiet: bool, whether or not to suppress prints (default: False)
+ 
 OUTPUT:
 List of any or all of variables specified in return_vars:
 - gate_u: N x 1 array of eastward drift components at gate points
 - gate_v: N x 1 array of northward drift components at gate points
-- perp_vecs: (N x 2) array of gate-perpendicular vectors (length 1)
+- perp_vecs: (N x 2) array of gate-perpendicular (90 CW from gate-parallel) vectors (length 1)
             (axis 0, axis 1) as (perp_i, perp_j) 
             with perp_i eastward, perp_j northward. 90 deg CCW from gate-parallel.
-- para_vecs: (N x 2) array of gate-parallel vectors (length 1)
+- para_vecs: (N x 2) array of gate-parallel (along-azimuth) vectors (unit length)
             (axis 0, axis 1) as (para_i, para_j) 
             with para_i eastward, para_j northward. 90 deg CW from gate-perpendicular.
 - gate_perp: gate-normal ice drift components
@@ -85,13 +87,13 @@ Latest recorded update:
                                         grid_lons = lon_grid, grid_lats = lat_grid, 
                                         grid_data = u_grid, mask = np.isnan(u_grid),  
                                         return_vars = ['weighted_mean'],
-                                        max_dist = max_dist)
+                                        max_dist = max_dist, quiet = True)
         # V component
         v_mean = distance_weighted_mean(point_lon = gate[ii, 0], point_lat = gate[ii, 1], 
                                         grid_lons = lon_grid, grid_lats = lat_grid, 
                                         grid_data = v_grid, mask = np.isnan(v_grid),  
                                         return_vars = ['weighted_mean'],
-                                        max_dist = max_dist)
+                                        max_dist = max_dist, quiet = quiet)
 
         # save eastward, northward drift components
         gate_u = np.append(gate_u, u_mean)
@@ -99,20 +101,32 @@ Latest recorded update:
 
         # create unit vectors for gate
         #-----------------------------
-        # gate-perpendicular
-        gate_perp_i = -np.cos(azimuths[ii].to('radian').magnitude)
-        gate_perp_j = np.sin(azimuths[ii].to('radian').magnitude)
-        perp_vecs = np.append(perp_vecs, (gate_perp_i, gate_perp_j))
+#         # gate-perpendicular
+#         gate_perp_i = -np.cos(azimuths[ii].to('radian').magnitude)
+#         gate_perp_j = np.sin(azimuths[ii].to('radian').magnitude)
+#         perp_vecs = np.append(perp_vecs, (gate_perp_i, gate_perp_j))
         
+#         # gate-parallel
+#         # convert azimuth to beta coordinate
+#         beta = (np.pi/2)*units('radian') - azimuths[ii].to('radian')
+#         # ensure within [-180, 180] range
+#         if beta <= -np.pi*units('radian'):
+#             beta += 2*np.pi*units('radian')
+#         gate_para_i = np.cos(beta.to('radian').magnitude)
+#         gate_para_j = np.sin(beta.to('radian').magnitude)
+#         para_vecs = np.append(para_vecs, (gate_para_i, gate_para_j))
+        
+    
         # gate-parallel
-        # convert azimuth to beta coordinate
-        beta = (np.pi/2)*units('radian') - azimuths[ii].to('radian')
-        # ensure within [-180, 180] range
-        if beta <= -np.pi*units('radian'):
-            beta += 2*np.pi*units('radian')
-        gate_para_i = np.cos(beta.to('radian').magnitude)
-        gate_para_j = np.sin(beta.to('radian').magnitude)
+        gate_para_i = np.sin(azimuths[ii].to('radian').magnitude) # northward
+        gate_para_j = np.cos(azimuths[ii].to('radian').magnitude) # eastward
         para_vecs = np.append(para_vecs, (gate_para_i, gate_para_j))
+        
+     
+        # gate-perpendicular
+        gate_perp_i = gate_para_j
+        gate_perp_j = -gate_para_i
+        perp_vecs = np.append(perp_vecs, (gate_perp_i, gate_perp_j))
         
         # find gate-perp and -para drift
         #-------------------------------

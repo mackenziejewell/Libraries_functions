@@ -210,7 +210,7 @@ from datetime import datetime
 def grab_ice_Drift(date = datetime(year = 2000, month = 1, day = 1),
                    PPD_drift_path = '/Volumes/Jewell_EasyStore/NSIDC-0116_PPdrift/', 
                    PPD_filename = 'icemotion_daily_nh_25km_{}0101_{}1231_v4.1.nc', 
-                   return_vars = ['lon', 'lat', 'u', 'v', 'xx', 'yy', 'u_EASE', 'v_EASE', 'proj', 'ds'], 
+                   return_vars = ['lon', 'lat', 'u', 'v', 'xx', 'yy', 'u_EASE', 'v_EASE', 'proj', 'ds', 'error'], 
                    lat_range = [0, 90], lon_range = [0, 360]):
 
     """Import NSIDC Polar Pathfinder (sea ice drift NSIDC-0116, doi:10.5067/INAWUWO7QH7B) lats, lons, u, v cropped to within given lat/lon range.
@@ -221,7 +221,7 @@ INPUT:
 - PPD_filename: naming convention for PPD files (default: 'icemotion_daily_nh_25km_{}0101_{}1231_v4.1.nc' where {} will be replaced with year of dt_obj)
 - return_vars: variables/attributes to return in specified order. (list)
     Can include any or all OUTPUT variables in any order: 
-    default: ['lon', 'lat', 'u', 'v', 'xx', 'yy', 'u_EASE', 'v_EASE', 'proj', 'ds']
+    default: ['lon', 'lat', 'u', 'v', 'xx', 'yy', 'u_EASE', 'v_EASE', 'proj', 'ds', 'error']
 - lat_range:latitude range for cropping
     (default: [0, 90])
 - lon_range:longitude range for cropping (defined 0 to 360)
@@ -237,6 +237,7 @@ List of any or all of variables specified in return_vars:
 - yy: M x N grid of y values of EASEgrid, corresponding to u_EASE, v_EASE
 - u_EASE: M x N grid of along-x component of ice drift
 - v_EASE: M x N grid of along-y component of ice drift
+- error: M x N grid of estimated error variance (ice motion error measure)
 - proj: cartopy projection from PP drift data projection info
 - ds: xarray data frame containing data from year of date
 
@@ -247,7 +248,7 @@ import xarray as xr
 from datetime import datetime
 
 Latest recorded update:
-06-28-2022
+03-22-2024
     """
 
 
@@ -285,7 +286,10 @@ Latest recorded update:
     # projected drift components
     u_EASE = ds_date.u.values
     v_EASE = ds_date.v.values
-
+    
+    # grab ice motion error variance
+    error = ds_date.icemotion_error_estimate.values
+    
     # projected coords
     xx, yy = np.meshgrid(ds_date.x.values, ds_date.y.values)
 
@@ -295,7 +299,7 @@ Latest recorded update:
     lon[lon<0]+=360
 
     # crop data to lat/long range
-    lon, lat, [xx, yy, u_EASE, v_EASE] = crop_PPD_data(lon = lon, lat = lat, VARS = [xx, yy, u_EASE, v_EASE], lon_range=lon_range, lat_range=lat_range)
+    lon, lat, [xx, yy, u_EASE, v_EASE, error] = crop_PPD_data(lon = lon, lat = lat, VARS = [xx, yy, u_EASE, v_EASE, error], lon_range=lon_range, lat_range=lat_range)
 
     # add to dict
     vars_dict['lon'] = lon
@@ -304,6 +308,7 @@ Latest recorded update:
     vars_dict['yy'] = yy
     vars_dict['u_EASE'] = u_EASE
     vars_dict['v_EASE'] = v_EASE
+    vars_dict['error'] = error
 
     # if converted u, v desired, crop them
     if 'u' in return_vars or 'v' in return_vars:
