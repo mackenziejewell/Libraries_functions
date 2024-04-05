@@ -1,3 +1,136 @@
+
+
+#////////////////////////
+#  gate_interp_nans  ///
+#//////////////////////
+#---------------------------------------------------------------------
+# Linearly interpolate across nan values in gate-orthogonal drift data
+#---------------------------------------------------------------------
+# DEPENDENCIES
+import numpy as np
+#---------------------------------------------------------------------
+def gate_interp_nans(gate_perp_values):
+    
+    """Function to linearly interpolate across nans in gate-orthogonal drift data
+    
+INPUT:
+- gate_perp_values: (N x 1) array of gate-orthogonal drift data.
+    (should not have nans at endpoints! Use "gate_handle_nans" to ensure that first.)
+
+OUTPUT:
+- gate_perp: (N x 1) array of updated gate-orthogonal drift data, with interpolations across nan values
+
+
+DEPENDENCIES:
+import numpy as np
+
+Latest recorded update:
+04-02-2024
+    
+    """
+    
+    
+    gate_perp = np.copy(gate_perp_values)
+    
+    assert gate_perp[0] != np.nan, "First value is np.nan! Should not have nans at endpoints."
+    assert gate_perp[-1] != np.nan, "Last value is np.nan! Should not have nans at endpoints."
+    
+    # loop through all but endpoints
+    for ii in range(1,len(gate_perp)-1):
+
+        # if any nans are found, interpolate values from neighbors
+        if np.isnan(gate_perp[ii]):
+            n_e = ii
+
+            # find non-nan neighbors
+            #---------------------------
+            # step backward to find nearest non-nan neighbore BEFORE error
+            n_b = np.nan
+            n_a = np.nan
+            for jj in range(1,n_e)[::-1]:
+                if not np.isnan(gate_perp[jj]):
+                    n_b = jj
+                    break
+            # step forward to find nearest non-nan neighbore AFTER error
+            for jj in range(n_e+1,len(gate_perp)):
+                if not np.isnan(gate_perp[jj]):
+                    n_a = jj
+                    break
+            if np.isnan(n_b) or np.isnan(n_a):
+                print('Cant find any non-nan neighbors!')
+
+            # interpolate value
+            #---------------------------
+            # dist between non-nans (b->a) and (b->e)
+            dS = n_a - n_b
+            ds = n_e - n_b
+
+            # difference between values (b->a) and (b->e)
+            dV = gate_perp[n_a] - gate_perp[n_b]
+            dv = (dV/dS)*ds
+
+            # estimated values at (e)
+            v_e = gate_perp[n_b] + dv
+
+            # replace values
+            gate_perp[n_e] = v_e
+
+    return gate_perp
+
+
+
+
+#////////////////////////
+#  gate_handle_nans  ///
+#//////////////////////
+#---------------------------------------------------------------------
+# Handle conditions/nans at individual gate points.
+#---------------------------------------------------------------------
+# DEPENDENCIES
+import numpy as np
+from metpy.units import units
+#---------------------------------------------------------------------
+def gate_handle_nans(gate_perp_values, set_zero = [], set_nan_zero = []):
+    
+    """Function to handle conditions/nans at individual gate points
+    
+INPUT:
+- gate_perp_values: (N x 1) array of gate-orthogonal drift component data. 
+- set_zero: indices of gate_perp_values to unconditionally set to zero
+    (for use at gate endpoints ending on land)
+- set_nan_zero: indices of gate_perp_values to set to zero IF they are np.nan
+    (for use at gate endpoints ending on ice that is usually landfast)
+
+OUTPUT:
+- gate_perp: (N x 1) array of updated gate-orthogonal drift component data
+
+
+DEPENDENCIES:
+import numpy as np
+from metpy.units import units
+
+Latest recorded update:
+04-02-2024
+    
+    """
+    
+    gate_perp = np.copy(gate_perp_values)
+    
+    # set to zero (should always be nan anyway)
+    # use for points that are on land (gate endpoints)
+    for ii in set_zero:
+        gate_perp[ii] = 0 * units('cm/s')
+    
+    # set to zero if is a nan
+    # use for points in LF ice. Likely always a nan (in which case will replace with 0 for stationary ice)
+    # but allow values there in case it does ever move
+    for ii in set_nan_zero:
+        if np.isnan(gate_perp[ii]):
+            gate_perp[ii] = 0 * units('cm/s')
+
+    return gate_perp
+
+
 #///////////////////////
 #  gate_drift_comp  ///
 #/////////////////////
