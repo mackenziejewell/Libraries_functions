@@ -11,6 +11,7 @@ import numpy as np
 import numpy.ma as ma
 import cartopy
 import cartopy.crs as ccrs
+from datetime import datetime, timedelta
 #---------------------------------------------------------------------
 def grab_projinfo_OSISAF(ds, quiet = True):
 
@@ -84,6 +85,7 @@ import numpy.ma as ma
 import cartopy
 import cartopy.crs as ccrs
 import xarray as xr
+from datetime import datetime, timedelta
 
 Latest recorded update:
 06-19-2024
