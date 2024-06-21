@@ -155,7 +155,7 @@ Latest recorded update:
     # from metpy.units import units
     
     # assert input variable types
-    assert str(type(date)) == "<class 'datetime.datetime'>", f'date must be datetime object, not {type(date)}'
+#     assert str(type(date)) == "<class 'datetime.datetime'>", f'date must be datetime object, not {type(date)}'
     assert type(return_vars) == list, f'return_vars must be list, not {type(return_vars)}'
     assert type(main_path) == str, f'main_path must be string, not {type(main_path)}'
     assert type(quiet) == bool, f'suppress_prints must be bool, not {type(suppress_prints)}'
