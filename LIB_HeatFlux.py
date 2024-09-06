@@ -3,13 +3,124 @@
 from metpy.units import units
 import numpy as np
 from metpy.calc import relative_humidity_from_dewpoint, mixing_ratio_from_relative_humidity, vapor_pressure
+from scipy.interpolate import RegularGridInterpolator
 
-
+# turbulent_OHF
+# calc_friction_u
+# QERA_atpoints
 # calc_ssh
 # calc_lwd
 # calc_lwu
 # seasonal_Cio
 # calc_vars_from_T_S
+
+# OLD FUNCTIONS
+# calc_friction_v
+
+
+def turbulent_OHF(dT, us, rho_o = 1023 * units('kg/m3'), 
+                  Cp = 3980 * units('J') * units('kg')**(-1) * units('delta_degC')**(-1), 
+                 St = 0.0057):
+
+    """Calculate bulk turbulent heat flux. Reference McPhee 2008 and Zhong (https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021GL096216)
+
+INPUT: 
+- dT: mixed layer temperature difference from freezing (units: 'delta_degC')
+- us: surface friction velocity (units: 'm/s')
+- rho_o: seawater density (default: 1023 * units('kg/m3'))
+- Cp: seawater heat capacity (default: 3980 * units('J') * units('kg')**(-1) * units('delta_degC')**(-1))
+- St: heat transfer coefficient / stanton number (default: St = 0.0057)
+
+OUTPUT:
+- F_H_bulk: estimated turbulent heat flux (units: 'W/meter^2')
+
+DEPENDENCIES:
+from metpy.units import units
+import numpy as np
+
+Latest recorded update:
+09-05-2024
+    """
+    
+    # bulk turbulent heat flux
+    F_H_bulk = (rho_o * Cp * St * us * dT).to('W/meter^2')
+
+    return F_H_bulk
+
+
+def calc_friction_u(delta_u, z, z0 = 0.05 * units('m')):
+    
+    """Calculate friction velocity, based on McPhee 2008.
+
+INPUT: 
+- delta_u: magnitude difference between ice and ocean velocities (but retain units), with depth
+- z0: roughness length scale
+- z: ocean depth, negative from surface = 0
+
+OUTPUT:
+- us0: estimate surface friction velocity from ocean currents at depth
+
+DEPENDENCIES:
+from scipy.interpolate import RegularGridInterpolator
+import numpy as np
+
+Latest recorded update:
+09-05-2024
+    """
+    
+    K = 0.4 # van karman's constant
+    
+    # square root of effective drag coefficient 
+    # with depth from effective drag length scale
+    sq_cd = ( (1/K) * np.log(-z/z0) ) ** (-1)
+    
+    us0 = sq_cd * delta_u
+    
+    return us0
+
+
+
+
+def QERA_atpoints(x_grid, y_grid, z_grid, x_pts, y_pts, method = 'linear'):
+    
+    """Interpolate ERA5 lat/long data to desired lat/lon coordinates.
+
+INPUT: 
+- x_grid: gridded longitudes
+- y_grid: gridded latitudes
+- y_grid: gridded data (no units!)
+- x_pts: longitude of desired coordinates
+- y_pts: latitude of desired coordinates
+- method: interpolation method (default: 'linear')
+
+OUTPUT:
+- z_pts: intepolated data values
+
+DEPENDENCIES:
+from scipy.interpolate import RegularGridInterpolator
+import numpy as np
+
+Latest recorded update:
+09-05-2024
+    """
+    
+    #from scipy.interpolate import RegularGridInterpolator
+    # transpose EAR5 data since its on backwards-seeming grid
+    # convert all data to float64, says "no matching signature" if some are float32
+    x = np.transpose(x_grid)[:,0].astype(np.float64)
+    y = np.transpose(y_grid)[0,:].astype(np.float64)
+    z = np.transpose(z_grid).astype(np.float64)
+
+    # Create the interpolator
+    interp = RegularGridInterpolator((x, y), z, method=method)
+
+    # coordinates at which we want data
+    points = np.array(list(zip(x_pts, y_pts)))
+    z_pts = interp(points)
+    
+    return z_pts
+
+
 
 def calc_ssh(Ta, Ts, p, U,
             Cpa = 1005 * units('J/(kg delta_degC)'),
@@ -219,3 +330,47 @@ def calc_vars_from_T_S(T, SP, depth, lon, lat, saturation_fraction = 1):
     sigma0 = gsw.density.sigma1(SA, CT)
     
     return SA, CT, sigma0, T_f
+
+
+
+
+
+#OLD FUNCTIONS
+# def calc_friction_v(u_ice = np.array([]), v_ice = np.array([]),
+#                     u_ocn = np.array([]), v_ocn = np.array([]),
+#                     rho_o = 1023 * units('kg/m3'), Cio = 0.0055):
+
+#     # ice-ocean velocity difference
+#     U0_x = (u_ice - u_ocn)
+#     U0_y = (v_ice - v_ocn)
+    
+#     # magnitude of ice-ocean velocity difference
+#     U0 = np.sqrt(U0_x**2 + U0_y**2)
+    
+# #     # I think the following only matters for direction of stress
+# #     # they say (+) turning angle, but in oceanography (+) means clockwise - yes?
+# #     # so to get CW turning, apply (-) algebraic rotation
+# #     beta = -23 * np.pi/180 
+    
+# #     # angle of ice-ocean velocity difference
+# #     theta = np.arctan2(U0_y, U0_x)
+    
+# #     # rotated ice-ocean velocity difference
+# #     rot_x = U0 * np.cos(theta+beta)
+# #     rot_y = U0 * np.sin(theta+beta)
+    
+# #     # magnitude of rotated ice-ocean velocity difference
+# #     R0U0 = np.sqrt(rot_x**2 + rot_y**2)
+    
+#     # simplified: IGNORING DIRECTION:
+#     R0U0 = U0
+    
+#     # Zhong description of parameterized friction velocity from ice-ocean drag:
+#     # https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021GL096216
+#     us = np.sqrt(Cio * U0 * R0U0)
+    
+#     return us
+    
+
+
+
