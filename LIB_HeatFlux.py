@@ -5,6 +5,7 @@ import numpy as np
 from metpy.calc import relative_humidity_from_dewpoint, mixing_ratio_from_relative_humidity, vapor_pressure
 from scipy.interpolate import RegularGridInterpolator
 
+# find_MODIS_IST
 # turbulent_OHF
 # calc_friction_u
 # QERA_atpoints
@@ -16,6 +17,47 @@ from scipy.interpolate import RegularGridInterpolator
 
 # OLD FUNCTIONS
 # calc_friction_v
+
+import warnings
+def find_MODIS_IST(x_points, y_points, grid_x, grid_y, grid_IST, dx = 0, dy = 0):
+    
+    # suppress mean warnings
+#     warnings.filterwarnings("ignore", category=RuntimeWarning)
+    
+    # x_points, y_points:
+    # (L x 1) x and y coordinates in coordinate system where IST is desired
+    # grid_x, grid_y
+    # (M x N) gridded x, y values of transformed (IST to desired) data (matching og IST data shape)
+    # grid_data
+    # (M x N) gridded IST data
+    # dx, dy
+    # (float) spacing in desired coordinate system
+    # IST
+    # (L x 1) array of mean IST values matching IST data
+    
+    IST = np.array([])
+
+    for x, y in zip(x_points, y_points):
+
+        # (M x N) mask of values within ds/2 of each point
+        x_range = (grid_x > (x - dx/2)) & (grid_x < (x + dx/2))
+        y_range = (grid_y > (y - dy/2)) & (grid_y < (y + dy/2))
+        point_range = (x_range)&(y_range)
+
+        # may also want to apply (poly_mask['ist']) 
+        # to make sure points don't extend outside polygon range
+        if len(grid_IST[point_range]) == 0:
+            mean_ist = np.nan
+        elif np.sum(np.isfinite(grid_IST[point_range])) == 0:
+            mean_ist = np.nan
+        else:
+            mean_ist = np.nanmean(grid_IST[point_range])
+        IST = np.append(IST, mean_ist)
+
+      # return to default behavior
+#     warnings.filterwarnings("default", category=RuntimeWarning)
+    
+    return IST
 
 
 def turbulent_OHF(dT, us, rho_o = 1023 * units('kg/m3'), 
@@ -126,7 +168,7 @@ def calc_ssh(Ta, Ts, p, U,
             Cpa = 1005 * units('J/(kg delta_degC)'),
             Cs = 0.00175):
     
-    """Calculate turbulent air-surface sensible heat flux (+ upwards).
+    """Calculate turbulent air-surface sensible heat flux (+ downwards).
     Referencing Weeks: On Sea Ice text, page 198.
 
 INPUT: 
@@ -140,7 +182,7 @@ constants with adjustable values:
 - Cs: bulk transfer coefficient (assume 0.00175 from Weeks p.198)
 
 OUTPUT:
-- FS: surface sensible heat flux [W m-2] (+ is surface -> atmosphere)
+- FS: surface sensible heat flux [W m-2] (+ is atmosphere -> surface)
 
 DEPENDENCIES:
 from metpy.units import units
@@ -174,7 +216,7 @@ Latest recorded update:
     rho = (p.to('N/m**2') / (Rspec * TA))
 
     # calculate surface heat flux
-    FS = - rho * Cpa * Cs * U * (((TA - TS).magnitude)*units('delta_degC'))
+    FS = rho * Cpa * Cs * U * (((TA - TS).magnitude)*units('delta_degC'))
     
     return FS.to('W/m**2')
 
@@ -182,7 +224,7 @@ Latest recorded update:
 
 def calc_lwu(Ts, Es = 0.98):
     
-    """Calculate upward longwave radiation (+ upwards).
+    """Calculate upward longwave radiation (+ downwards).
     Referencing Weeks: On Sea Ice text, page 197 and Pease 1987
 
 INPUT: 
@@ -192,7 +234,7 @@ constants with adjustable values:
 - Es : surface emissivity (default 0.98 from Pease 1987)
 
 OUTPUT:
-- LWU: upward longwave radiative flux [W m-2] (+ is surface -> atmosphere)
+- LWU: upward longwave radiative flux [W m-2] (+ is atmosphere -> surface)
 
 DEPENDENCIES:
 from metpy.units import units
@@ -214,14 +256,14 @@ Latest recorded update:
         print(f'Unrecognized units for Ts: {Ts.units}')
         
     # calculate longwave upward flux
-    LWU = Es * SIG * TS**4
+    LWU = - Es * SIG * TS**4
     
     return LWU.to('W/m**2')
 
 
 def calc_lwd(Ta, Td, p, C):
     
-    """Calculate downward longwave radiation (+ upwards).
+    """Calculate downward longwave radiation (+ downwards).
     Referencing Weeks: On Sea Ice text, page 197
 
 INPUT: 
@@ -235,7 +277,7 @@ constants with adjustable values:
 - Ea : atmospheric emissivity (default 0.95 from Pease 1987)
 
 OUTPUT:
-- LWD: downward longwave radiative flux [W m-2] (+ is surface -> atmosphere)
+- LWD: downward longwave radiative flux [W m-2] (+ is atmosphere -> surface)
 
 DEPENDENCIES:
 from metpy.units import units
@@ -258,7 +300,7 @@ Latest recorded update:
         
     # calculate longwave upward flux (simple relation, using atmospheric emissivity 0.95 from Pease 1987)
     Ea = 0.95
-    LWD_simple = - (Ea * SIG * TA**4).to('W/m**2')
+    LWD_simple = (Ea * SIG * TA**4).to('W/m**2')
     
     # calculate vapor pressure of water from Ta, Td, p
     rh = relative_humidity_from_dewpoint(Ta, Td).to('percent') # relative humidity
@@ -267,11 +309,16 @@ Latest recorded update:
 
     # LWD under clear-sky conditions 
     # use empirical estimate of Ea from Efimova 1961 (but ref.d from Weeks P. 197)
-    Ea = (0.746 + 0.0066 * e.magnitude)
-    LWD_clr = - (Ea * SIG * TA**4).to('W/m**2')
+#     Ea = (0.746 + 0.0066 * e.magnitude)
+#     LWD_clr = (Ea * SIG * TA**4).to('W/m**2')
     
     # clear LWD to all LWD, from Maykut and Church 1973 (but ref.d from Weeks P. 198)
-    LWD_all = LWD_clr * (1 + 0.22 * C ** (2.75))
+#     LWD_all = LWD_clr * (1 + 0.22 * C ** (2.75))
+
+    # Grumbine 1994
+    Es = 0.98
+    LWD_clr = (Es * SIG * TA**4).to('W/m**2')
+    LWD_all = LWD_clr * ( 0.7855 + (0.2232 * C ** (2.75)) )
     
     return LWD_simple, LWD_clr, LWD_all
 
