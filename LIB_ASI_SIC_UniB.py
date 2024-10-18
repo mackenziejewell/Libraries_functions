@@ -64,7 +64,7 @@ Latest recorded update:
 
 
 def grab_ASI_SIC(date = datetime(year = 2015, month = 3, day = 24), 
-                 main_path = '/Volumes/Jewell_EasyStore/UniB-ASI-SIC/',
+                 main_path = '/Volumes/Jewell_EasyStore/UniB-ASI-SIC-n6250/',
                  coord_file = 'LongitudeLatitudeGrid-n6250-Arctic.hdf',
                  hemisphere = 'n',
                  resolution = '6250',
@@ -145,7 +145,7 @@ import netCDF4 (might be needed for xr to open ds?)
 grab_projinfo_SIC
 
 Latest recorded update:
-01-31-2024
+10-10-2024
     """
 
     # import numpy as np
